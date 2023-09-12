@@ -1,9 +1,9 @@
 # Relations and Population
 
-Relations and Population is handeled differently and seperately. At this time Relations are only supported for tables in the same database, not acoss different databases. Relations are also not supported with MongoDB. This is due to how TypeORM works. There is, however, the ability to populate returned record with data from other records from other databases using Population. At this time Population is not able to update records pulle for populaton, though this is planned in a future release.
+Relations and Population is handeled differently and seperately. At this time Relations are only supported for tables in the same database, not acoss different databases. Relations are also not supported with MongoDB. This is due to how Mikro-ORM works. There is, however, the ability to populate returned record with data from other records from other databases using Population. At this time Population is not able to update records pulle for populaton, though this is planned in a future release.
 
 ## Relations
-As with using TypeORM, relations are handled by passing them to the ```options``` argument of a method. The format for this is the same as used in TypeORM:
+As with using Mikro-ORM, relations are handled by passing them to the ```options``` argument of a method. The format for this is the same as used in Mikro-ORM:
 
 ```js
 {
@@ -11,11 +11,11 @@ As with using TypeORM, relations are handled by passing them to the ```options``
     relations: {"createdBy": true,"lastModifiedBy": true}
 }
 ```
-For more information on relations plese refere to teh TypeORM [documenttion](https://typeorm.io/relations).
+For more information on relations plese refere to teh Mikro-ORM [documenttion](https://typeorm.io/relations).
 Relations can also be added as query paramater of an api call as well e.g. ```/api/v1/user/list?relations={"createdBy": true,"lastModifiedBy": true}```.
 
 ## Population
-Population is handled by a customized method ```getPopulations```. It follows the moleculer methodology for population records with other records.  It is basically the same as moleculers popultion system, just customized to support TypeORM. As with the other TypeORM entity and manager methods, ```getPopulations``` is tied to the main entity of the adapter and each additional entity on the same adapter has it's own ```getPopulations``` method.
+Population is handled by a customized method ```getPopulations```. It follows the moleculer methodology for population records with other records.  It is basically the same as moleculers popultion system, just customized to support Mikro-ORM. As with the other Mikro-ORM entity and manager methods, ```getPopulations``` is tied to the main entity of the adapter and each additional entity on the same adapter has it's own ```getPopulations``` method.
 Population can be used with any entity and along side Relations when records need to be populated from other databases. This gives you the power to use Relations for tables within an sql database, then populate the returned record with records from a different database or database type like MongoDB for instance.
 
 !> The attribute of the record to be populated must contain the ```id``` of the record to be retreived, otherwise population will not happen. Possibly in a future release a ```where``` clause could be used to add more flexability, but for now the ```id``` is a requirement.

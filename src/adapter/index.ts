@@ -1,6 +1,6 @@
 /*
  * moleculer-db-typeorm-adapter
- * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-typeorm-adapter)
+ * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-mikroorm-adapter)
  * MIT Licensed
  */
 
@@ -11,7 +11,6 @@ import {
 	cloneDeep,
 	compact,
 	defaultsDeep,
-	find,
 	flattenDeep,
 	get,
 	has,
@@ -20,7 +19,6 @@ import {
 	isObject,
 	isString,
 	isUndefined,
-	map,
 	replace,
 	set,
 	uniq,
@@ -33,28 +31,23 @@ import {
 	EntityManager,
 	EntityRepository,
 	EntitySchema,
-	MikroORM,
 	MikroORMOptions,
 } from '@mikro-orm/core';
 import ConnectionManager from './connectionManager';
 import { ListParams } from '../types/mikroormadapter';
-// import { ObjectId } from 'mongodb';
-// import path from 'node:path';
-// const pkg = require(path.resolve(__dirname, '../../package.json'));
-// const type = require('typeof-items');
 
 /**
- * Moleculer TypeORM Adapter
+ * Moleculer Mikro-ORM Adapter
  *
  * @name moleculer-db-typeORM-adapter
  * @module Service
- * @class TypeOrmDbAdapter
+ * @class MikroORMDbAdapter
  */
 /**
- * Settings for TypeORM adapter
+ * Settings for Mikro-ORM adapter
  *
  * @module Settings
- * @param {DataSourceOptions} opts - TypeORM connection options
+ * @param {DataSourceOptions} opts - Mikro-ORM connection options
  *
  * @example
  * ```js
@@ -68,7 +61,7 @@ import { ListParams } from '../types/mikroormadapter';
  * }
  * ```
  */
-export default class TypeORMDbAdapter<Entity extends AnyEntity> {
+export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	// Dynamic property key
 	[index: string]: any;
 	/**
@@ -102,7 +95,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	repository: EntityRepository<Entity> | undefined;
 
 	/**
-	 * Creates an instance of TypeORM db service.
+	 * Creates an instance of Mikro-ORM db service.
 	 *
 	 * @param {DataSourceOptions} opts
 	 *
@@ -117,7 +110,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {ServiceBroker} broker
 	 * @param {Service} service
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	init(broker: ServiceBroker, service: Service) {
 		this.broker = broker;
@@ -159,7 +152,6 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 		 */
 		const orm: any = await this.connectionManager.create(this.opts);
 		this.broker.logger.info(`${this.service.name} has connected to ${orm.name} database`);
-		// console.log('db.em: ', db.em);
 
 		/**
 		 * array of entities
@@ -191,13 +183,6 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 			const dbManager: any = orm.em.fork();
 			const entityName = dbRepository.entityName;
 			const entityMethodNames = entityMethods(entity);
-			// const ormMethodNames = entityMethods(db.em);
-			// const repositoryMethodNames = entityMethods(dbRepository);
-			// console.log('dbRepository: ', dbRepository.find);
-			// console.log('entityName: ', entityName);
-			// console.log('entityMethodNames: ', entityMethodNames);
-			// console.log('ormMethodNames: ', ormMethodNames);
-			// console.log('repositoryMethodNames: ', repositoryMethodNames);
 
 			/**
 			 * object for entity methods to this.adapter.entityName
@@ -224,102 +209,92 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 					? (this[method] = entity[method])
 					: (methodsToAdd[method] = entity[method]);
 			});
-			// ormMethodNames.forEach((method) => {
-			// 	index === 0
-			// 		? (this[method] = db[method])
-			// 		: (methodsToAdd[method] = db[method]);
-			// });
-			// repositoryMethodNames.forEach((method) => {
-			// 	index === 0
-			// 		? (this[method] = dbRepository[method])
-			// 		: (methodsToAdd[method] = dbRepository[method]);
-			// });
 			/**
 			 * add entity manager methods to this.adapter or methods object
 			 */
-			[
-				/**
-				 * Base orm entity manager methods
-				 */
-				'addFilter',
-				'assign',
-				'begin',
-				'canPopulate',
-				'clear',
-				'clearCache',
-				'commit',
-				'count',
-				'create',
-				'find',
-				'findAndCount',
-				'findOne',
-				'findOneOrFail',
-				'flush',
-				'fork',
-				'getComparator',
-				'getConnection',
-				'getDriver',
-				'getEntityFactory',
-				'getEventManager',
-				'getFilterParams',
-				'getHydrator',
-				'getMetadata',
-				'getPlatform',
-				'getReference',
-				'getRepository',
-				'getTransactionContext',
-				'getUnitOfWork',
-				'getValidator',
-				'insert',
-				'insertMany',
-				'isInTransaction',
-				'lock',
-				'map',
-				'merge',
-				'nativeDelete',
-				'nativeInsert',
-				'nativeUpdate',
-				'persist',
-				'persistAndFlush',
-				'persistLater',
-				'populate',
-				'refresh',
-				'remove',
-				'removeAndFlush',
-				'removeLater',
-				'repo',
-				'resetTransactionContext',
-				'rollback',
-				'setFilterParams',
-				'setFlushMode',
-				'setTransactionContext',
-				'transactional',
-				'upsert',
-				'upsertMany',
-				/**
-				 * SQL orm entity manager methods
-				 */
-				'createQueryBuilder',
-				'execute',
-				'getKnex',
-				'qb',
-				'raw',
-				/**
-				 * Mongo orm entity manager methods
-				 */
-				'aggregate',
-				'getCollection',
-			].forEach((method) => {
-				/**
-				 * add base entity methods to this.adapter if index === 0
-				 * or add additional methods to methods object
-				 */
-				if (dbManager[method]) {
-					index === 0
-						? (this[method] = dbManager[method])
-						: (methodsToAdd[method] = dbManager[method]);
-				}
-			});
+			// [
+			// 	/**
+			// 	 * Base orm entity manager methods
+			// 	 */
+			// 	'addFilter',
+			// 	'assign',
+			// 	'begin',
+			// 	'canPopulate',
+			// 	'clear',
+			// 	'clearCache',
+			// 	'commit',
+			// 	'count',
+			// 	'create',
+			// 	'find',
+			// 	'findAndCount',
+			// 	'findOne',
+			// 	'findOneOrFail',
+			// 	'flush',
+			// 	'fork',
+			// 	'getComparator',
+			// 	'getConnection',
+			// 	'getDriver',
+			// 	'getEntityFactory',
+			// 	'getEventManager',
+			// 	'getFilterParams',
+			// 	'getHydrator',
+			// 	'getMetadata',
+			// 	'getPlatform',
+			// 	'getReference',
+			// 	'getRepository',
+			// 	'getTransactionContext',
+			// 	'getUnitOfWork',
+			// 	'getValidator',
+			// 	'insert',
+			// 	'insertMany',
+			// 	'isInTransaction',
+			// 	'lock',
+			// 	'map',
+			// 	'merge',
+			// 	'nativeDelete',
+			// 	'nativeInsert',
+			// 	'nativeUpdate',
+			// 	'persist',
+			// 	'persistAndFlush',
+			// 	'persistLater',
+			// 	'populate',
+			// 	'refresh',
+			// 	'remove',
+			// 	'removeAndFlush',
+			// 	'removeLater',
+			// 	'repo',
+			// 	'resetTransactionContext',
+			// 	'rollback',
+			// 	'setFilterParams',
+			// 	'setFlushMode',
+			// 	'setTransactionContext',
+			// 	'transactional',
+			// 	'upsert',
+			// 	'upsertMany',
+			// 	/**
+			// 	 * SQL orm entity manager methods
+			// 	 */
+			// 	'createQueryBuilder',
+			// 	'execute',
+			// 	'getKnex',
+			// 	'qb',
+			// 	'raw',
+			// 	/**
+			// 	 * Mongo orm entity manager methods
+			// 	 */
+			// 	'aggregate',
+			// 	'getCollection',
+			// ].forEach((method) => {
+			// 	/**
+			// 	 * add base entity methods to this.adapter if index === 0
+			// 	 * or add additional methods to methods object
+			// 	 */
+			// 	if (dbManager[method]) {
+			// 		index === 0
+			// 			? (this[method] = dbManager[method])
+			// 			: (methodsToAdd[method] = dbManager[method]);
+			// 	}
+			// });
 			/**
 			 * add entity repository methods to this.adapter or methods object
 			 */
@@ -451,7 +426,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @public
 	 * @returns {Promise}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	disconnect(): Promise<any> {
 		this.connectionManager!.connections.forEach(async (connection: any) => {
@@ -488,7 +463,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object | Array<Object>} entityOrEntities - record(s) to create
 	 * @param {Object?} options - Optional MongoDB insert options
 	 * @returns {Promise<Object | Array<Object>>}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	async create<T extends Entity>(
 		ctx: Context,
@@ -626,7 +601,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {any} id - ID of record to be updated
 	 * @param {Object} update - Object with update data
 	 * @returns {Promise} - Updated record
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	/* async updateById(ctx: Context, id: any, update: any): Promise<any> {
 		const params = this.sanitizeParams(ctx, update);
@@ -700,7 +675,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object} options - count options
 	 * @param {Object?} query - query options
 	 * @returns {Promise<number>}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	async count<T extends Entity>(where?: any, options?: any): Promise<number> {
 		return this['count'](where, options);
@@ -713,7 +688,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Context} ctx - request context
 	 * @param {Object} findManyOptions - find many options
 	 * @returns {Promise<T[] | number[]>}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	async find<T extends Entity>(ctx: Context): Promise<[T[], number]> {
 		const params = this.sanitizeParams(ctx, ctx.params);
@@ -755,7 +730,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Context} ctx - request context
 	 * @param {Object} findOptions - find options
 	 * @returns {Promise<T | undefined>}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	async findOne<T extends Entity>(ctx: Context, findOptions?: any): Promise<T | undefined> {
 		const params = this.sanitizeParams(ctx, ctx.params);
@@ -787,7 +762,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {string | number | string[] | number[]} id - id(s) of entity
 	 * @param {Object} findOptions - find options, like relations, order, etc. No where clause
 	 * @returns {Promise<T | undefined>}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	/* async findByIdWO<T extends Entity>(
 		ctx: Context,
@@ -888,7 +863,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Partial<T>} key - primary db id column name
 	 * @param {string | number | string[] | number[]} id - id(s) of entity
 	 * @returns {Promise<T | undefined>}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 *
 	 */
 	/* async findById<T extends Entity>(
@@ -1040,7 +1015,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Context} ctx - Context instance.
 	 * @param {ListParams<Object>?} params - Optional parameters.
 	 * @returns {Object} List of found entities and count.
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	list(ctx: Context, params: ListParams): object {
 		const sanatizedParams = this.sanitizeParams(ctx, params);
@@ -1147,7 +1122,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object} entity - Record to be saved
 	 * @param {String} idField - user defined service idField
 	 * @returns {Object} - Modified entity
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	/* beforeSaveTransformID(entity: any, idField: string): object {
 		let newEntity = cloneDeep(entity);
@@ -1178,7 +1153,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object} entity = Record retrieved from db
 	 * @param {String} idField - user defined service idField
 	 * @returns {Object} - Modified entity
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	/* afterRetrieveTransformID(entity: any, idField: string): Object {
 		// gets the idField from the entity
@@ -1205,7 +1180,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {any} id
 	 * @returns {any}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	encodeID(id: any): any {
 		return id;
@@ -1216,7 +1191,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {any} id
 	 * @returns {any}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	/* toMongoObjectId(id: any): ObjectId {
 		return new ObjectId(id);
@@ -1227,7 +1202,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {any} id
 	 * @returns {any}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	fromMongoObjectId(id: any): string {
 		return id.toString();
@@ -1238,7 +1213,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {any} idField - user defined service idField
 	 * @returns {Object} - Record to be saved
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	/* beforeQueryTransformID(idField: any): any {
 		const dbIDField =
@@ -1258,7 +1233,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {any} id
 	 * @returns {any}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	decodeID(id: any): any {
 		return id;
@@ -1273,7 +1248,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object} 	params - Params of the request
 	 * @param {Array|Object} docs - Records to be transformed
 	 * @returns {Array|Object} - Transformed records
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	transformDocuments(ctx: any, params: any, docs: any): Promise<Array<any> | object> {
 		this.broker.logger.debug('Transforming documents..');
@@ -1406,7 +1381,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object} entity
 	 * @param {Context} ctx
 	 * @returns {Promise}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any> {
 		const eventName = `beforeEntity${capitalize(type)}`;
@@ -1423,7 +1398,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object|Array<Object>|Number} json
 	 * @param {Context} ctx
 	 * @returns {Promise}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	async entityChanged(type: string | undefined, json: any, ctx: any): Promise<any> {
 		return await this.clearCache().then(async () => {
@@ -1438,7 +1413,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * Clear cached entities
 	 * @methods
 	 * @returns {Promise}
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	clearCache(): Promise<any> {
 		this.broker[this.service.settings.cacheCleanEventType](`cache.clean.${this.fullName}`);
@@ -1452,7 +1427,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object} doc - Record to be filtered.
 	 * @param {Array<String>} fields - Filter properties of model.
 	 * @returns	{Object} - Filtered record
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	filterFields(doc: any, fields: any[]): object {
 		// Apply field filter (support nested paths)
@@ -1474,7 +1449,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Object} doc - Record to be filtered.
 	 * @param {Array<String>} fields - Exclude properties of model.
 	 * @returns	{Object} - Recored without excluded fields
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	excludeFields(doc: any, fields: string | any[]): object {
 		if (Array.isArray(fields) && fields.length > 0) {
@@ -1505,7 +1480,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Array|Object} docs - Records to be populated
 	 * @param {Array?} populateFields - Fields to be populated
 	 * @returns	{Promise} - Record with populated fields of relation
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any> {
 		this.broker.logger.debug('Attempting to populate documents..');
@@ -1680,7 +1655,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {Object} entity - Record to be validated
 	 * @returns {Promise} - Validated record or unvalitaded record if no validator function is supplied.
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	validateEntity(entity: any): Promise<any> {
 		if (!isFunction(this.service.settings.entityValidator)) return resolve(entity);
@@ -1696,7 +1671,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {any} entity - Record to be converted
 	 * @returns {Object} - JSON object of record
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	entityToObject(entity: any): object {
 		return entity;
@@ -1707,7 +1682,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {Array} askedFields - List of fields to be authorized
 	 * @returns {Array} - Authorized list of fields
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	authorizeFields(askedFields: any[]): Array<any> {
 		if (this.service.settings.fields && this.service.settings.fields.length > 0) {
@@ -1753,7 +1728,7 @@ export default class TypeORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Context} ctx - Request context
 	 * @param {Object} params - Request parameters
 	 * @returns {Object} - Sanitized parameters
-	 * @memberof TypeORMDbAdapter
+	 * @memberof MikroORMDbAdapter
 	 */
 	sanitizeParams(ctx: any, params: any) {
 		let p = Object.assign({}, params);
@@ -2279,7 +2254,7 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 				 * @param {Context} ctx - Request context
 				 * @param {Object} params - Request parameters
 				 * @returns {Object} - Sanitized parameters
-				 * @memberof TypeORMDbAdapter
+				 * @memberof MikroORMDbAdapter
 				 */
 				sanitizeParams(ctx: any, params: any): any {
 					// @ts-ignore

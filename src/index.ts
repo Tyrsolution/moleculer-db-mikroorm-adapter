@@ -1,6 +1,6 @@
 /*
- * moleculer-db-microORM-adapter
- * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-microORM-adapter)
+ * moleculer-db-mikroorm-adapter
+ * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-mikroorm-adapter)
  * MIT Licensed
  */
 

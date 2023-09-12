@@ -30,7 +30,7 @@ export default () => {
 			}),
 			dtsBundle({
 				bundle: {
-					name: '@tyrsolutions/moleculer-db-microORM-adapter',
+					name: '@tyrsolutions/moleculer-db-mikroorm-adapter',
 					main: 'src/types/mikroormadapter.d.ts',
 					out: '../../dist/index.d.ts', // can be omitted, 'typings.d.ts' - default output.
 

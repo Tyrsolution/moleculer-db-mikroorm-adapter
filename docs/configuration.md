@@ -2,7 +2,7 @@
 
 ## Data Source
 
-The data source object is what tells the adapter what database to use, can have conneciton details and entity information contained in it. This object is passed to TypeORM to create the database configuration. Details on database configurations for different systems can be foudn on the TypreORM project documentation [here](https://typeorm.io/data-source-options).
+The data source object is what tells the adapter what database to use, can have conneciton details and entity information contained in it. This object is passed to Mikro-ORM to create the database configuration. Details on database configurations for different systems can be foudn on the TypreORM project documentation [here](https://typeorm.io/data-source-options).
 
 Below is an example of a data source object for better-sqlite3:
 ```js

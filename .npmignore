@@ -12,7 +12,7 @@ test/
 .editorconfig
 .eslintrc.js
 prettier.config.js
-moleculer-db-microORM-adapter.d.ts
+moleculer-db-mikroorm-adapter.d.ts
 src/
 templates/
 examples/

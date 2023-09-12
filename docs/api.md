@@ -906,7 +906,7 @@ Connection won't be established, you'll need to manually call connect method to 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `options` | `Object` | **required** | TypeORM data source connection options |
+| `options` | `Object` | **required** | Mikro-ORM data source connection options |
 | `newConnection` | `boolean` | `false` | Toggle to create a new instance of MikroORMDbAdapter. |
 
 ### Results

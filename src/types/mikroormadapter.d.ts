@@ -1,66 +1,47 @@
 /*
- * moleculer-db-microORM-adapter
- * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-microORM-adapter)
+ * moleculer-db-mikroorm-adapter
+ * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-mikroorm-adapter)
  * MIT Licensed
  */
-import { AnyEntity, Collection, DeepPartial, EntityManager, EntityRepository, MikroORM, MikroORMOptions } from '@mikro-orm/core';
-import { Context, Service, ServiceBroker, ServiceSchema } from 'moleculer';
-/* import {
-	any,
-	AggregationCursor,
-	any,
-	any,
-	any,
-	any,
-	any,
-	Collection,
-	any,
+import {
+	AnyEntity,
+	AssignOptions,
+	Configuration,
+	Constructor,
 	CountOptions,
-	any,
+	CreateOptions,
+	DeleteOptions,
+	EntityData,
+	EntityDictionary,
+	EntityLoaderOptions,
+	EntityManager,
+	EntityManagerType,
+	EntityMetadata,
+	EntityName,
+	EntityRepository,
+	FilterQuery,
+	FindOneOptions,
+	FindOneOrFailOptions,
+	FindOptions,
+	GetReferenceOptions,
+	IDatabaseDriver,
+	IEntityGenerator,
+	IMigrator,
+	ISeedManager,
+	Loaded,
+	MergeOptions,
+	MetadataStorage,
 	MikroORM,
 	MikroORMOptions,
-	DeepPartial,
-	any,
-	any,
-	EntityManager,
-	EntityTarget,
-	Filter,
-	FilterOperators,
-	FindCursor,
-	FindManyOptions,
-	any,
-	any,
-	any,
-	FindOneOptions,
-	FindOptionsOrder,
-	FindOptionsRelations,
-	FindOptionsSelect,
-	FindOptionsWhere,
-	any,
-	InsertManyResult,
-	any,
-	any,
-	InsertResult,
-	any,
-	any,
-	ObjectId,
-	any,
-	any,
-	any,
-	any,
-	any,
-	Repository,
-	any,
-	any,
-	any,
-	UpdateFilter,
-	any,
-	any,
-} from 'typeorm';
-import { PickKeysByType } from 'typeorm/common/PickKeysByType';
-import { MongoFindOneOptions } from 'typeorm/find-options/mongodb/MongoFindOneOptions';
-import { DeepPartial } from 'typeorm/query-builder/QueryPartialEntity';
-import { UpsertOptions } from 'typeorm/repository/UpsertOptions'; */
+	NativeInsertUpdateOptions,
+	Options,
+	Primary,
+	Ref,
+	RequiredEntityData,
+	UpdateOptions,
+} from '@mikro-orm/core';
+import { AutoPath } from '@mikro-orm/core/typings';
+import { Context, Service, ServiceBroker, ServiceSchema } from 'moleculer';
 
 export interface ListParams {
 	/**
@@ -78,7 +59,7 @@ export interface ListParams {
 	limit?: String | Number;
 	offset?: String | Number;
 	/**
-	 * TypeORM paramaters
+	 * Mikro-ORM paramaters
 	 * If paramaters are missing it's because they are deprecated so we don't need them
 	 * or there have been additoins to the typeorm library that are not yet implemented.
 	 */
@@ -233,7 +214,7 @@ declare class ConnectionManager {
 	 * Connection won't be established, you'll need to manually call connect method to establish connection.
 	 *
 	 * @public
-	 * @param {Object} options - TypeORM data source connection options
+	 * @param {Object} options - Mikro-ORM data source connection options
 	 * @returns {Promise<connection>} - Connection
 	 *
 	 * @connectionmanager
@@ -241,840 +222,340 @@ declare class ConnectionManager {
 	create(options: MikroORMOptions, newConnection?: boolean): Promise<any>;
 }
 
-export interface DbAdapter<Entity extends AnyEntity> {
+export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver = IDatabaseDriver> {
+	//#region DbAdapter properties
 	[key: string]: any;
 	/**
-	 * TypeORM Entity Repository
+	 * Mikro-ORM Entity Repository
 	 */
 	repository: EntityRepository<Entity> | undefined;
 	/**
-	 * TypeORM Entity Manager
+	 * Mikro-ORM Entity Manager
 	 */
-	manager: EntityManager | undefined;
+	manager: D[typeof EntityManagerType] & EntityManager;
 	/**
-	 * TypeORM Adapter Connection Manager
+	 * Mikro-ORM Adapter Connection Manager
 	 */
 	connectionManager: ConnectionManager | undefined;
+	orm: MikroORM<D>;
+	//#endregion DbAdapter properties
+	//#region MicroORM orm methods
 	/**
-	 * Checks if entity has an id.
-	 * If entity composite compose ids, it will check them all.
+	 * MicroORM orm methods
 	 */
-	hasId(entity: Entity): boolean;
 	/**
-	 * Saves all given entities in the database.
-	 * If entities do not exist in the database then inserts, otherwise updates.
+	 * Reconnects, possibly to a different database.
 	 */
-	_save<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options: any & {
-			reload: false;
-		},
-	): Promise<T[]>;
+	reconnect(options?: Options): Promise<void>;
 	/**
-	 * Saves all given entities in the database.
-	 * If entities do not exist in the database then inserts, otherwise updates.
+	 * Checks whether the database connection is active.
 	 */
-	_save<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options?: any,
-	): Promise<(T & Entity)[]>;
+	isConnected(): Promise<boolean>;
 	/**
-	 * Saves a given entity in the database.
-	 * If entity does not exist in the database then inserts, otherwise updates.
+	 * Closes the database connection.
 	 */
-	_save<T extends DeepPartial<Entity>>(
-		entity: T,
-		options: any & {
-			reload: false;
-		},
-	): Promise<T>;
+	close(force?: boolean): Promise<void>;
 	/**
-	 * Saves a given entity in the database.
-	 * If entity does not exist in the database then inserts, otherwise updates.
+	 * Gets the `MetadataStorage`.
 	 */
-	_save<T extends DeepPartial<Entity>>(entity: T, options?: any): Promise<T & Entity>;
+	getMetadata(): MetadataStorage;
 	/**
-	 * Removes a given entities from the database.
+	 * Gets the `EntityMetadata` instance when provided with the `entityName` parameter.
 	 */
-	_remove<T extends Entity>(entities: T[], options?: any): Promise<T[]>;
+	getMetadata(entityName: EntityName<Entity>): EntityMetadata<Entity>;
+	discoverEntities(): Promise<void>;
 	/**
-	 * Removes a given entity from the database.
+	 * Allows dynamically discovering new entity by reference, handy for testing schema diffing.
 	 */
-	_remove<T extends Entity>(entity: T, options?: any): Promise<T>;
+	discoverEntity(entities: Constructor | Constructor[]): Promise<void>;
 	/**
-	 * Records the delete date of all given entities.
+	 * Gets the SchemaGenerator.
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options: any & {
-			reload: false;
-		},
-	): Promise<T[]>;
+	getSchemaGenerator(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
 	/**
-	 * Records the delete date of all given entities.
+	 * Gets the EntityGenerator.
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options?: any,
-	): Promise<(T & Entity)[]>;
+	getEntityGenerator<T extends IEntityGenerator = IEntityGenerator>(): T;
 	/**
-	 * Records the delete date of a given entity.
+	 * Gets the Migrator.
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entity: T,
-		options: any & {
-			reload: false;
-		},
-	): Promise<T>;
+	getMigrator<T extends IMigrator = IMigrator>(): T;
 	/**
-	 * Records the delete date of a given entity.
+	 * Gets the SeedManager
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entity: T,
-		options?: any,
-	): Promise<T & Entity>;
+	getSeeder<T extends ISeedManager = ISeedManager>(): T;
 	/**
-	 * Recovers all given entities in the database.
+	 * Shortcut for `orm.getSchemaGenerator()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options: any & {
-			reload: false;
-		},
-	): Promise<T[]>;
+	get schema(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
 	/**
-	 * Recovers all given entities in the database.
+	 * Shortcut for `orm.getSeeder()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options?: any,
-	): Promise<(T & Entity)[]>;
+	get seeder(): ISeedManager;
 	/**
-	 * Recovers a given entity in the database.
+	 * Shortcut for `orm.getMigrator()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(
-		entity: T,
-		options: any & {
-			reload: false;
-		},
-	): Promise<T>;
+	get migrator(): IMigrator;
 	/**
-	 * Recovers a given entity in the database.
+	 * Shortcut for `orm.getEntityGenerator()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(entity: T, options?: any): Promise<T & Entity>;
+	get entityGenerator(): IEntityGenerator;
+	//#endregion MicroORM orm methods
+	//#region MikroORM entityrepostory methods
 	/**
-	 * Reloads entity data from the database.
+	 * MikroORM entityrepostory methods
 	 */
-	_reload(): Promise<void>;
 	/**
-	 * Sets MikroORM to be used by entity.
-	 */
-	useMikroORM(MikroORM: MikroORM | null): void;
-	/**
-	 * Gets current entity's Repository.
-	 */
-	getRepository<T extends Entity>(this: T): EntityRepository<T>;
-	/**
-	 * Returns object that is managed by this repository.
-	 * If this repository manages entity from schema,
-	 * then it returns a name of that schema instead.
-	 */
-	// get target(): EntityTarget<any>;
-	/**
-	 * Gets entity mixed id.
-	 */
-	getId<T extends Entity>(entity: T): any;
-	/**
-	 * Creates a new query builder that can be used to build a SQL query.
-	 */
-	_createQueryBuilder<T extends Entity>(
-		alias?: string,
-		any?: any,
-	): any;
-	/**
-	 * Creates a new entity instance.
-	 */
-	_create<T extends Entity>(this: { new (): T }): T;
-	/**
-	 * Creates new entities and copies all entity properties from given objects into their new entities.
-	 * Note that it copies only properties that are present in entity schema.
-	 */
-	_create<T extends Entity>(entityLikeArray: DeepPartial<T>[]): T[];
-	/**
-	 * Creates a new entity instance and copies all entity properties from this object into a new entity.
-	 * Note that it copies only properties that are present in entity schema.
-	 */
-	_create<T extends Entity>(entityLike: DeepPartial<T>): T;
-	/**
-	 * Merges multiple entities (or entity-like objects) into a given entity.
-	 */
-	_merge<T extends Entity>(mergeIntoEntity: T, ...entityLikes: DeepPartial<T>[]): T;
-	/**
-	 * Creates a new entity from the given plain javascript object. If entity already exist in the database, then
-	 * it loads it (and everything related to it), replaces all values with the new ones from the given object
-	 * and returns this new entity. This new entity is actually a loaded from the db entity with all properties
-	 * replaced from the new object.
+	 * Tells the EntityManager to make an instance managed and persistent.
+	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
 	 *
-	 * Note that given entity-like object must have an entity id / primary key to find entity by.
-	 * Returns undefined if entity with given id was not found.
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_preload<T extends Entity>(entityLike: DeepPartial<T>): Promise<T | undefined>;
+	persist(entity: AnyEntity | AnyEntity[]): EntityManager;
 	/**
-	 * Inserts a given entity into the database.
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient INSERT query.
-	 * Does not check if entity exist in the database, so query will fail if duplicate entity is being inserted.
-	 */
-	_insert<T extends Entity>(
-		entity: DeepPartial<T> | DeepPartial<T>[],
-	): Promise<any>;
-	/**
-	 * Updates entity partially. Entity can be found by a given conditions.
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient UPDATE query.
-	 * Does not check if entity exist in the database.
-	 */
-	_update<T extends Entity>(
-		criteria:
-			| string
-			| string[]
-			| number
-			| number[]
-			| Date
-			| Date[],
-		partialEntity: DeepPartial<T>,
-	): Promise<any>;
-	/**
-	 * Inserts a given entity into the database, unless a unique constraint conflicts then updates the entity
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient INSERT ... ON CONFLICT DO UPDATE/ON DUPLICATE KEY UPDATE query.
-	 */
-	_upsert<T extends Entity>(
-		entityOrEntities: DeepPartial<T> | DeepPartial<T>[],
-		conflictPathsOrOptions: any,
-	): Promise<any>;
-	/**
-	 * Deletes entities by a given criteria.
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient DELETE query.
-	 * Does not check if entity exist in the database.
-	 */
-	_delete<T extends Entity>(
-		criteria:
-			| string
-			| string[]
-			| number
-			| number[]
-			| Date
-			| Date[],
-	): Promise<any>;
-	/**
-	 * Counts entities that match given options.
-	 * Useful for pagination.
-	 */
-	_count<T extends Entity>(options?: any): Promise<number>;
-	/**
-	 * Counts entities that match given conditions.
-	 * Useful for pagination.
-	 */
-	_countBy<T extends Entity>(where: any | any[]): Promise<number>;
-	/**
-	 * Return the SUM of a column
-	 */
-	_sum<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Return the AVG of a column
-	 */
-	_average<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Return the MIN of a column
-	 */
-	_minimum<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Return the MAX of a column
-	 */
-	_maximum<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Finds entities that match given find options.
-	 */
-	_find<T extends Entity>(options?: any): Promise<T[]>;
-	/**
-	 * Finds entities that match given find options.
-	 */
-	_findBy<T extends Entity>(where: any | any[]): Promise<T[]>;
-	/**
-	 * Finds entities that match given find options.
-	 * Also counts all entities that match given conditions,
-	 * but ignores pagination settings (from and take options).
-	 */
-	_findAndCount<T extends Entity>(options?: any): Promise<[T[], number]>;
-	/**
-	 * Finds entities that match given WHERE conditions.
-	 * Also counts all entities that match given conditions,
-	 * but ignores pagination settings (from and take options).
-	 */
-	_findAndCountBy<T extends Entity>(
-		where: any | any[],
-	): Promise<[T[], number]>;
-	/**
-	 * Finds first entity by a given find options.
-	 * If entity was not found in the database - returns null.
-	 */
-	_findOne<T extends Entity>(options: any): Promise<T | null>;
-	/**
-	 * Finds first entity that matches given where condition.
-	 * If entity was not found in the database - returns null.
-	 */
-	_findOneBy<T extends Entity>(
-		where: any | any[],
-	): Promise<T | null>;
-	/**
-	 * Finds first entity by a given find options.
-	 * If entity was not found in the database - rejects with error.
-	 */
-	_findOneOrFail<T extends Entity>(options: any): Promise<T>;
-	/**
-	 * Finds first entity that matches given where condition.
-	 * If entity was not found in the database - rejects with error.
-	 */
-	_findOneByOrFail<T extends Entity>(
-		where: any | any[],
-	): Promise<T>;
-	/**
-	 * Executes a raw SQL query and returns a raw database results.
-	 * Raw query execution is supported only by relational databases (MongoDB is not supported).
-	 */
-	_query<T extends Entity>(query: string, parameters?: any[]): Promise<any>;
-	/**
-	 * Clears all the data from the given table/collection (truncates/drops it).
+	 * Persists your entity immediately, flushing all not yet persisted changes to the database too.
+	 * Equivalent to `em.persist(e).flush()`.
 	 *
-	 * Note: this method uses TRUNCATE and may not work as you expect in transactions on some platforms.
-	 * @see https://stackoverflow.com/a/5972738/925151
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_clear<T extends Entity>(this: { new (): T }): Promise<void>;
+	persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
 	/**
-	 * MongoDB Only methods
-	 */
-	/**
-	 * MongoDB Only
-	 * Creates a cursor for a query that can be used to iterate over results from MongoDB.
-	 */
-	_createCursor<T = any>(query?: any): any;
-	/**
-	 * MongoDB Only
-	 * Creates a cursor for a query that can be used to iterate over results from MongoDB.
-	 * This returns modified version of cursor that transforms each result into Entity model.
-	 */
-	_createEntityCursor(query?: any): any;
-	/**
-	 * MongoDB Only
-	 * Execute an aggregation framework pipeline against the collection.
-	 */
-	_aggregate<R = any>(
-		pipeline: any[],
-		options?: any,
-	): any;
-	/**
-	 * MongoDB Only
-	 * Execute an aggregation framework pipeline against the collection.
-	 * This returns modified version of cursor that transforms each result into Entity model.
-	 */
-	_aggregateEntity(
-		pipeline: any[],
-		options?: any,
-	): any;
-	/**
-	 * MongoDB Only
-	 * Perform a bulkWrite operation without a fluent API.
-	 */
-	_bulkWrite(
-		operations: any[],
-		options?: any,
-	): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Creates an index on the db and collection.
-	 */
-	_createCollectionIndex(
-		fieldOrSpec: string | any,
-		options?: any,
-	): Promise<string>;
-	/**
-	 * MongoDB Only
-	 * Creates multiple indexes in the collection, this method is only supported for MongoDB 2.6 or higher.
-	 * Earlier version of MongoDB will throw a command not supported error.
-	 * Index specifications are defined at http://docs.mongodb.org/manual/reference/command/createIndexes/.
-	 */
-	_createCollectionIndexes(indexSpecs: any[]): Promise<string[]>;
-	/**
-	 * MongoDB Only
-	 * Delete multiple documents on MongoDB.
-	 */
-	_deleteMany(query: any, options?: any): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Delete a document on MongoDB.
-	 */
-	_deleteOne(query: any, options?: any): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * The distinct command returns returns a list of distinct values for the given key across a collection.
-	 */
-	_distinct(key: string, query: any, options?: any): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Drops an index from this collection.
-	 */
-	_dropCollectionIndex(indexName: string, options?: any): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Drops all indexes from the collection.
-	 */
-	_dropCollectionIndexes(): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Find a document and delete it in one atomic operation, requires a write lock for the duration of the operation.
-	 */
-	_findOneAndDelete(query: any, options?: any): Promise<Document>;
-	/**
-	 * MongoDB Only
-	 * Find a document and replace it in one atomic operation, requires a write lock for the duration of the operation.
-	 */
-	_findOneAndReplace(
-		query: any,
-		replacement: Object,
-		options?: any,
-	): Promise<Document>;
-	/**
-	 * MongoDB Only
-	 * Find a document and update it in one atomic operation, requires a write lock for the duration of the operation.
-	 */
-	_findOneAndUpdate(
-		query: any,
-		update: Object,
-		options?: any,
-	): Promise<Document>;
-	/**
-	 * MongoDB Only
-	 * Retrieve all the indexes on the collection.
-	 */
-	_collectionIndexes(): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Retrieve all the indexes on the collection.
-	 */
-	_collectionIndexExists(indexes: string | string[]): Promise<boolean>;
-	/**
-	 * MongoDB Only
-	 * Retrieves this collections index info.
-	 */
-	_collectionIndexInformation(options?: { full: boolean }): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Initiate an In order bulk write operation, operations will be serially executed in the order they are added, creating a new operation for each switch in types.
-	 */
-	_initializeOrderedBulkOp(options?: any): any;
-	/**
-	 * MongoDB Only
-	 * Initiate a Out of order batch write operation. All operations will be buffered into insert/update/remove commands executed out of order.
-	 */
-	_initializeUnorderedBulkOp(options?: any): any;
-	/**
-	 * MongoDB Only
-	 * Inserts an array of documents into MongoDB.
-	 */
-	_insertMany(
-		docs: any[],
-		options?: any,
-	): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Inserts a single document into MongoDB.
-	 */
-	_insertOne(doc: any, options?: any): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Returns if the collection is a capped collection.
-	 */
-	_isCapped(): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Get the list of all indexes information for the collection.
-	 */
-	_listCollectionIndexes(options?: any): any;
-	/**
-	 * MongoDB Only
-	 * Reindex all indexes on the collection Warning: reIndex is a blocking operation (indexes are rebuilt in the foreground) and will be slow for large collections.
-	 */
-	_rename(newName: string, options?: { dropTarget?: boolean }): Promise<Collection<Document>>;
-	/**
-	 * MongoDB Only
-	 * Replace a document on MongoDB.
-	 */
-	_replaceOne(
-		query: any,
-		doc: any,
-		options?: any,
-	): Promise<Document | any>;
-	/**
-	 * MongoDB Only
-	 * Get all the collection statistics.
-	 */
-	_stats(options?: any): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Update multiple documents on MongoDB.
-	 */
-	_updateMany(
-		query: any,
-		update: any,
-		options?: any,
-	): Promise<Document | any>;
-	/**
-	 * MongoDB Only
-	 * Update a single document on MongoDB.
-	 */
-	_updateOne(
-		query: any,
-		update: any,
-		options?: any,
-	): Promise<Document | any>;
-	/** additional custom methods */
-	/**
-	 * Transform the id key to the name of the id field in db
-	 * @methods
-	 * @param {any} idField
-	 * @returns {any}
-	 * @memberof MikroORMDbAdapter
-	 */
-	beforeQueryTransformID(idField: any): any;
-	/**
-	 * Count number of matching documents in the db to a query.
+	 * Tells the EntityManager to make an instance managed and persistent.
+	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
 	 *
-	 * @methods
-	 * @param {Object} options - count options
-	 * @param {Object?} query - query options
-	 * @returns {Promise<number>}
-	 * @memberof MikroORMDbAdapter
+	 * @deprecated use `persist()`
 	 */
-	count<T extends Entity>(
-		where?: any,
-		options?: any,
+	persistLater(entity: AnyEntity | AnyEntity[]): void;
+	/**
+	 * Finds first entity matching your `where` query.
+	 */
+	findOne<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOneOptions<Entity, P>,
+	): Promise<Loaded<Entity, P> | null>;
+	/**
+	 * Finds first entity matching your `where` query. If nothing found, it will throw an error.
+	 * You can override the factory for creating this method via `options.failHandler` locally
+	 * or via `Configuration.findOneOrFailHandler` globally.
+	 */
+	findOneOrFail<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOneOrFailOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>>;
+	/**
+	 * Creates or updates the entity, based on whether it is already present in the database.
+	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
+	 * entity instance. The method accepts either `entityName` together with the entity `data`, or just entity instance.
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com') on conflict ("email") do update set "age" = 41
+	 * const author = await em.getRepository(Author).upsert({ email: 'foo@bar.com', age: 33 });
+	 * ```
+	 *
+	 * The entity data needs to contain either the primary key, or any other unique property. Let's consider the following example, where `Author.email` is a unique property:
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com') on conflict ("email") do update set "age" = 41
+	 * // select "id" from "author" where "email" = 'foo@bar.com'
+	 * const author = await em.getRepository(Author).upsert({ email: 'foo@bar.com', age: 33 });
+	 * ```
+	 *
+	 * Depending on the driver support, this will either use a returning query, or a separate select query, to fetch the primary key if it's missing from the `data`.
+	 *
+	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
+	 */
+	upsert(
+		entityOrData?: EntityData<Entity> | Entity,
+		options?: NativeInsertUpdateOptions<Entity>,
+	): Promise<Entity>;
+	/**
+	 * Creates or updates the entity, based on whether it is already present in the database.
+	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
+	 * entity instance.
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com') on conflict ("email") do update set "age" = 41
+	 * const authors = await em.getRepository(Author).upsertMany([{ email: 'foo@bar.com', age: 33 }, ...]);
+	 * ```
+	 *
+	 * The entity data needs to contain either the primary key, or any other unique property. Let's consider the following example, where `Author.email` is a unique property:
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com'), (666, 'lol@lol.lol') on conflict ("email") do update set "age" = excluded."age"
+	 * // select "id" from "author" where "email" = 'foo@bar.com'
+	 * const author = await em.getRepository(Author).upsertMany([
+	 *   { email: 'foo@bar.com', age: 33 },
+	 *   { email: 'lol@lol.lol', age: 666 },
+	 * ]);
+	 * ```
+	 *
+	 * Depending on the driver support, this will either use a returning query, or a separate select query, to fetch the primary key if it's missing from the `data`.
+	 *
+	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
+	 */
+	upsertMany(
+		entitiesOrData?: EntityData<Entity>[] | Entity[],
+		options?: NativeInsertUpdateOptions<Entity>,
+	): Promise<Entity[]>;
+	/**
+	 * Finds all entities matching your `where` query. You can pass additional options via the `options` parameter.
+	 */
+	find<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>[]>;
+	/**
+	 * Calls `em.find()` and `em.count()` with the same arguments (where applicable) and returns the results as tuple
+	 * where first element is the array of entities and the second is the count.
+	 */
+	findAndCount<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOptions<Entity, P>,
+	): Promise<[Loaded<Entity, P>[], number]>;
+	/**
+	 * Finds all entities of given type. You can pass additional options via the `options` parameter.
+	 */
+	findAll<P extends string = never>(
+		options?: FindOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>[]>;
+	/**
+	 * Marks entity for removal.
+	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
+	 *
+	 * To remove entities by condition, use `em.nativeDelete()`.
+	 *
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
+	 */
+	remove(entity: AnyEntity): EntityManager;
+	/**
+	 * Removes an entity instance immediately, flushing all not yet persisted changes to the database too.
+	 * Equivalent to `em.remove(e).flush()`
+	 *
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
+	 */
+	removeAndFlush(entity: AnyEntity): Promise<void>;
+	/**
+	 * Marks entity for removal.
+	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
+	 *
+	 * @deprecated use `remove()`
+	 */
+	removeLater(entity: AnyEntity): void;
+	/**
+	 * Flushes all changes to objects that have been queued up to now to the database.
+	 * This effectively synchronizes the in-memory state of managed objects with the database.
+	 * This method is a shortcut for `em.flush()`, in other words, it will flush the whole UoW,
+	 * not just entities registered via this particular repository.
+	 *
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
+	 */
+	flush(): Promise<void>;
+	/**
+	 * Fires native insert query. Calling this has no side effects on the context (identity map).
+	 */
+	nativeInsert(
+		data: Entity | EntityData<Entity>,
+		options?: NativeInsertUpdateOptions<Entity>,
+	): Promise<Primary<Entity>>;
+	/**
+	 * Fires native update query. Calling this has no side effects on the context (identity map).
+	 */
+	nativeUpdate(
+		where: FilterQuery<Entity>,
+		data: EntityData<Entity>,
+		options?: UpdateOptions<Entity>,
 	): Promise<number>;
 	/**
-	 * Finds entities that match given find options.
-	 *
-	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Object} findManyOptions - find many options
-	 * @returns {Promise<[T | number]>}
-	 * @memberof MikroORMDbAdapter
+	 * Fires native delete query. Calling this has no side effects on the context (identity map).
 	 */
-	find<T extends Entity>(
-		ctx: Context,
-		findManyOptions?: any,
-	): Promise<[T[], number]>;
+	nativeDelete(where: FilterQuery<Entity>, options?: DeleteOptions<Entity>): Promise<number>;
 	/**
-	 * Finds first item by a given find options.
-	 * If entity was not found in the database - returns null.
-	 * Available Options props:
-	 * - comment
-	 * - select
-	 * - where
-	 * - relations
-	 * - relationLoadStrategy
-	 * - join
-	 * - order
-	 * - cache
-	 * - lock
-	 * - withDeleted
-	 * - loadRelationIds
-	 * - loadEagerRelations
-	 * - transaction
-	 *
-	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Object} findOptions - find options
-	 * @returns {Promise<T | undefined>}
-	 * @memberof MikroORMDbAdapter
+	 * Maps raw database result to an entity and merges it to this EntityManager.
 	 */
-	findOne<T extends Entity>(
-		ctx: Context,
-		findOptions?: any,
-	): Promise<T | undefined>;
+	map(
+		result: EntityDictionary<Entity>,
+		options?: {
+			schema?: string;
+		},
+	): Entity;
 	/**
-	 * Gets item by id. Can use find options
-	 *
-	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {string | number} id - id of entity
-	 * @param {Object} findOptions - find options, like relations, order, etc. No where clause
-	 * @returns {Promise<T | undefined>}
-	 *
+	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	findByIdWO<T extends Entity>(
-		ctx: Context,
-		key: string | undefined | null,
-		id: string | number | string[] | number[],
-		findOptions?: any | any,
-	): Promise<T | undefined>;
-
+	getReference<PK extends keyof Entity>(
+		id: Primary<Entity>,
+		options: Omit<GetReferenceOptions, 'wrapped'> & {
+			wrapped: true;
+		},
+	): Ref<Entity, PK>;
 	/**
-	 * Gets item by id. No find options
-	 *
-	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {string | number} id - id of entity
-	 * @returns {Promise<T | undefined>}
-	 *
+	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	findById<T extends Entity>(
-		ctx: Context,
-		key: string | undefined | null,
-		id: string | number | string[] | number[],
-	): Promise<T | undefined>;
+	getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
 	/**
-	 * Populates entity(ies) by id(s) of another record.
-	 *
-	 * @methods
-	 *
-	 * @param {Context} ctx - Context instance.
-	 * @param {Object?} params - Parameters.
-	 *
-	 * @returns {Object|Array<Object>} Found entity(ies).
-	 *
-	 * @throws {EntityNotFoundError} - 404 Entity not found
+	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	getPopulations(ctx: Context, params?: any): Object | Array<Object>;
+	getReference(
+		id: Primary<Entity>,
+		options: Omit<GetReferenceOptions, 'wrapped'> & {
+			wrapped: false;
+		},
+	): Entity;
 	/**
-	 * Gets items by id.
-	 *
-	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {Array<string> | Array<number>} ids - ids of entity
-	 * @returns {Promise<T | undefined>}
-	 *
+	 * Checks whether given property can be populated on the entity.
 	 */
-	findByIds<T extends Entity>(
-		ctx: Context,
-		key: string | undefined | null,
-		ids: any[],
-	): Promise<T | undefined>;
+	canPopulate(property: string): boolean;
 	/**
-	 * Gets multiple items by id.
-	 * Can use find options, no where clause.
-	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {Array<string> | Array<number>} ids - ids of entity
-	 * @param {Object} findOptions - find options, like relations, order, etc. No where clause
-	 * @returns {Promise<T | undefined>}
-	 * @memberof MikroORMDbAdapter
-	 * @deprecated - use findByIdWO instead. It now supports multiple ids
-	 *
+	 * Loads specified relations in batch. This will execute one query for each relation, that will populate it on all of the specified entities.
 	 */
-	// findByIdsWO<T extends Entity>(
-	// 	ctx: Context,
-	// 	key: string | undefined | null,
-	// 	ids: any[],
-	// 	findOptions?: any,
-	// ): Promise<T | undefined>;
+	populate<P extends string = never>(
+		entities: Entity | Entity[],
+		populate: AutoPath<Entity, P>[] | boolean,
+		options?: EntityLoaderOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>[]>;
 	/**
-	 * List entities by filters and pagination results.
-	 *
-	 * @methods
-	 *
-	 * @param {Context} ctx - Context instance.
-	 * @param {Object?} params - Parameters.
-	 *
-	 * @returns {Object} List of found entities and count.
+	 * Creates new instance of given entity and populates it with given data.
+	 * The entity constructor will be used unless you provide `{ managed: true }` in the options parameter.
+	 * The constructor will be given parameters based on the defined constructor of the entity. If the constructor
+	 * parameter matches a property name, its value will be extracted from `data`. If no matching property exists,
+	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
+	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	list(ctx: any, params: ListParams): Promise<any>;
-
+	create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
 	/**
-	 * Transforms NeDB's '_id' into user defined 'idField'
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @memberof MemoryDbAdapter
-	 * @returns {Object} Modified entity
+	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
-	// afterRetrieveTransformID(entity: any, idField: string): any;
-
+	assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
 	/**
-	 * Encode ID of entity.
-	 *
-	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * Merges given entity to this EntityManager so it becomes managed. You can force refreshing of existing entities
+	 * via second parameter. By default it will return already loaded entities without modifying them.
 	 */
-	encodeID(id: any): any;
-
+	merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
 	/**
-	 * Decode ID of entity.
-	 *
-	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * Returns total number of entities matching your `where` query.
 	 */
-	decodeID(id: any): any;
-
+	count<P extends string = never>(
+		where?: FilterQuery<Entity>,
+		options?: CountOptions<Entity, P>,
+	): Promise<number>;
 	/**
-	 * Convert id to mongodb ObjectId.
-	 * @methods
-	 * @param {any} id
-	 * @returns {any}
-	 * @memberof MikroORMDbAdapter
+	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
 	 */
-	// toMongoObjectId(id: any): ObjectId;
-
+	get em(): EntityManager;
 	/**
-	 * Convert mongodb ObjectId to string.
-	 * @methods
-	 * @param {any} id
-	 * @returns {any}
-	 * @memberof MikroORMDbAdapter
+	 * Returns the underlying EntityManager instance
 	 */
-	fromMongoObjectId(id: any): string;
-
-	/**
-	 * Transform the fetched documents
-	 * @methods
-	 * @param {Context} ctx
-	 * @param {Object} 	params
-	 * @param {Array|Object} docs
-	 * @returns {Array|Object}
-	 */
-	transformDocuments(ctx: any, params: any, docs: any): any;
-
-	/**
-	 * Call before entity lifecycle events
-	 *
-	 * @methods
-	 * @param {String} type
-	 * @param {Object} entity
-	 * @param {Context} ctx
-	 * @returns {Promise}
-	 */
-	beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any>;
-
-	/**
-	 * Clear the cache & call entity lifecycle events
-	 *
-	 * @methods
-	 * @param {String} type
-	 * @param {Object|Array<Object>|Number} json
-	 * @param {Context} ctx
-	 * @returns {Promise}
-	 */
-	entityChanged(type: string | undefined, json: any, ctx: any): Promise<any>;
-	/**
-	 * Clear cached entities
-	 *
-	 * @methods
-	 * @returns {Promise}
-	 */
-	clearCache(): Promise<any>;
-	/**
-	 * Filter fields in the entity object
-	 *
-	 * @param {Object} 	doc
-	 * @param {Array<String>} 	fields	Filter properties of model.
-	 * @returns	{Object}
-	 */
-	filterFields(doc: any, fields: any[]): any;
-	/**
-	 * Exclude fields in the entity object
-	 *
-	 * @param {Object} 	doc
-	 * @param {Array<String>} 	fields	Exclude properties of model.
-	 * @returns	{Object}
-	 */
-	excludeFields(doc: any, fields: string | any[]): any;
-
-	/**
-	 * Exclude fields in the entity object. Internal use only, must ensure `fields` is an Array
-	 */
-	_excludeFields(doc: any, fields: any[]): any;
-
-	/**
-	 * Populate documents.
-	 *
-	 * @param {Context} 		ctx
-	 * @param {Array|Object} 	docs
-	 * @param {Array?}			populateFields
-	 * @returns	{Promise}
-	 */
-	populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any>;
-	/**
-	 * Validate an entity by validator.
-	 * @methods
-	 * @param {Object} entity
-	 * @returns {Promise}
-	 */
-	validateEntity(entity: any): Promise<any>;
-
-	/**
-	 * Convert DB entity to JSON object
-	 *
-	 * @param {any} entity
-	 * @returns {Object}
-	 * @memberof MemoryDbAdapter
-	 */
-	entityToObject(entity: any): any;
-
-	/**
-	 * Transforms 'idField' into NeDB's '_id'
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @memberof MemoryDbAdapter
-	 * @returns {Object} Modified entity
-	 */
-	beforeSaveTransformID(entity: any, idField: string): any;
-	/**
-	 * Authorize the required field list. Remove fields which is not exist in the `this.settings.fields`
-	 *
-	 * @param {Array} askedFields
-	 * @returns {Array}
-	 */
-	authorizeFields(askedFields: any[]): any[];
-	/**
-	 * Sanitize context parameters at `find` action.
-	 *
-	 * @methods
-	 *
-	 * @param {Context} ctx - Request context
-	 * @param {Object} params - Request parameters
-	 * @returns {Object} - Sanitized parameters
-	 * @memberof MikroORMDbAdapter
-	 */
-	sanitizeParams(ctx: any, params: any): any;
-	/**
-	 * Update an entity by ID
-	 * @param {Context} ctx - Request context
-	 * @param {any} id
-	 * @param {Object} update
-	 * @returns {Promise}
-	 * @memberof MemoryDbAdapter
-	 */
-	updateById(ctx: Context, id: any, update: any): Promise<any>;
+	getEntityManager(): EntityManager;
+	validateRepositoryType(entities: Entity[] | Entity, method: string): void;
+	//#endregion MikroORM entityrepostory methods
+	//#region Moleculer-db methods
 }
 
-export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAdapter<Entity> {
+export default class MikroORMDbAdapter<
+	Entity extends AnyEntity,
+	D extends IDatabaseDriver = IDatabaseDriver,
+> implements DbAdapter<Entity>
+{
+	//#region MikroORMDbAdapter properties
 	[index: string]: any;
 	/**
 	 * Grants access to the connection manager instance which is used to create and manage connections.
@@ -1096,7 +577,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 	 *
 	 * @properties
 	 */
-	manager: EntityManager | undefined;
+	manager: D[typeof EntityManagerType] & EntityManager;
 	/**
 	 * Grants access to the entity repository of the connection.
 	 * Called using this.adapter.repository
@@ -1106,13 +587,14 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 	 * @properties
 	 */
 	repository: EntityRepository<Entity> | undefined;
+	orm: MikroORM<D>;
 	/**
-	 * Creates an instance of TypeORM db service.
+	 * Creates an instance of Mikro-ORM db service.
 	 *
 	 * @param {MikroORMOptions} opts
 	 *
 	 */
-	constructor(opts?: MikroORMOptions);
+	constructor(options: Options<D> | Configuration<D>);
 	/**
 	 * Initialize adapter
 	 * It will be called in `broker.start()` and is used internally
@@ -1145,508 +627,316 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 	 * @returns {Promise}
 	 */
 	disconnect(): Promise<any>;
+	//#endregion MikroORMDbAdapter properties
+	//#region MicroORM orm methods
 	/**
-	 * Checks if entity has an id.
-	 * If entity composite compose ids, it will check them all.
+	 * MicroORM orm methods
 	 */
-	hasId(entity: Entity): boolean;
 	/**
-	 * Saves all given entities in the database.
-	 * If entities do not exist in the database then inserts, otherwise updates.
+	 * Reconnects, possibly to a different database.
 	 */
-	_save<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options: any & {
-			reload: false;
-		},
-	): Promise<T[]>;
+	reconnect(options?: Options): Promise<void>;
 	/**
-	 * Saves all given entities in the database.
-	 * If entities do not exist in the database then inserts, otherwise updates.
+	 * Checks whether the database connection is active.
 	 */
-	_save<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options?: any,
-	): Promise<(T & Entity)[]>;
+	isConnected(): Promise<boolean>;
 	/**
-	 * Saves a given entity in the database.
-	 * If entity does not exist in the database then inserts, otherwise updates.
+	 * Closes the database connection.
 	 */
-	_save<T extends DeepPartial<Entity>>(
-		entity: T,
-		options: any & {
-			reload: false;
-		},
-	): Promise<T>;
+	close(force?: boolean): Promise<void>;
 	/**
-	 * Saves a given entity in the database.
-	 * If entity does not exist in the database then inserts, otherwise updates.
+	 * Gets the `MetadataStorage`.
 	 */
-	_save<T extends DeepPartial<Entity>>(entity: T, options?: any): Promise<T & Entity>;
+	getMetadata(): MetadataStorage;
 	/**
-	 * Removes a given entities from the database.
+	 * Gets the `EntityMetadata` instance when provided with the `entityName` parameter.
 	 */
-	_remove<T extends Entity>(entities: T[], options?: any): Promise<T[]>;
+	getMetadata(entityName: EntityName<Entity>): EntityMetadata<Entity>;
+	discoverEntities(): Promise<void>;
 	/**
-	 * Removes a given entity from the database.
+	 * Allows dynamically discovering new entity by reference, handy for testing schema diffing.
 	 */
-	_remove<T extends Entity>(entity: T, options?: any): Promise<T>;
+	discoverEntity(entities: Constructor | Constructor[]): Promise<void>;
 	/**
-	 * Records the delete date of all given entities.
+	 * Gets the SchemaGenerator.
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options: any & {
-			reload: false;
-		},
-	): Promise<T[]>;
+	getSchemaGenerator(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
 	/**
-	 * Records the delete date of all given entities.
+	 * Gets the EntityGenerator.
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options?: any,
-	): Promise<(T & Entity)[]>;
+	getEntityGenerator<T extends IEntityGenerator = IEntityGenerator>(): T;
 	/**
-	 * Records the delete date of a given entity.
+	 * Gets the Migrator.
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entity: T,
-		options: any & {
-			reload: false;
-		},
-	): Promise<T>;
+	getMigrator<T extends IMigrator = IMigrator>(): T;
 	/**
-	 * Records the delete date of a given entity.
+	 * Gets the SeedManager
 	 */
-	_softRemove<T extends DeepPartial<Entity>>(
-		entity: T,
-		options?: any,
-	): Promise<T & Entity>;
+	getSeeder<T extends ISeedManager = ISeedManager>(): T;
 	/**
-	 * Recovers all given entities in the database.
+	 * Shortcut for `orm.getSchemaGenerator()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options: any & {
-			reload: false;
-		},
-	): Promise<T[]>;
+	get schema(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
 	/**
-	 * Recovers all given entities in the database.
+	 * Shortcut for `orm.getSeeder()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(
-		entities: T[],
-		options?: any,
-	): Promise<(T & Entity)[]>;
+	get seeder(): ISeedManager;
 	/**
-	 * Recovers a given entity in the database.
+	 * Shortcut for `orm.getMigrator()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(
-		entity: T,
-		options: any & {
-			reload: false;
-		},
-	): Promise<T>;
+	get migrator(): IMigrator;
 	/**
-	 * Recovers a given entity in the database.
+	 * Shortcut for `orm.getEntityGenerator()`
 	 */
-	_recover<T extends DeepPartial<Entity>>(entity: T, options?: any): Promise<T & Entity>;
+	get entityGenerator(): IEntityGenerator;
+	//#endregion MicroORM orm methods
+	//#region MikroORM entityrepostory methods
 	/**
-	 * Reloads entity data from the database.
+	 * MikroORM entityrepostory methods
 	 */
-	_reload(): Promise<void>;
 	/**
-	 * Sets MikroORM to be used by entity.
-	 */
-	useMikroORM(MikroORM: MikroORM | null): void;
-	/**
-	 * Gets current entity's Repository.
-	 */
-	getRepository<T extends Entity>(this: T): EntityRepository<T>;
-	/**
-	 * Returns object that is managed by this repository.
-	 * If this repository manages entity from schema,
-	 * then it returns a name of that schema instead.
-	 */
-	// get target(): EntityTarget<any>;
-	/**
-	 * Gets entity mixed id.
-	 */
-	getId<T extends Entity>(entity: T): any;
-	/**
-	 * Creates a new query builder that can be used to build a SQL query.
-	 */
-	_createQueryBuilder<T extends Entity>(
-		alias?: string,
-		any?: any,
-	): any;
-	/**
-	 * Creates a new entity instance.
-	 */
-	_create<T extends Entity>(this: { new (): T }): T;
-	/**
-	 * Creates new entities and copies all entity properties from given objects into their new entities.
-	 * Note that it copies only properties that are present in entity schema.
-	 */
-	_create<T extends Entity>(entityLikeArray: DeepPartial<T>[]): T[];
-	/**
-	 * Creates a new entity instance and copies all entity properties from this object into a new entity.
-	 * Note that it copies only properties that are present in entity schema.
-	 */
-	_create<T extends Entity>(entityLike: DeepPartial<T>): T;
-	/**
-	 * Merges multiple entities (or entity-like objects) into a given entity.
-	 */
-	_merge<T extends Entity>(mergeIntoEntity: T, ...entityLikes: DeepPartial<T>[]): T;
-	/**
-	 * Creates a new entity from the given plain javascript object. If entity already exist in the database, then
-	 * it loads it (and everything related to it), replaces all values with the new ones from the given object
-	 * and returns this new entity. This new entity is actually a loaded from the db entity with all properties
-	 * replaced from the new object.
+	 * Tells the EntityManager to make an instance managed and persistent.
+	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
 	 *
-	 * Note that given entity-like object must have an entity id / primary key to find entity by.
-	 * Returns undefined if entity with given id was not found.
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_preload<T extends Entity>(entityLike: DeepPartial<T>): Promise<T | undefined>;
+	persist(entity: AnyEntity | AnyEntity[]): EntityManager;
 	/**
-	 * Inserts a given entity into the database.
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient INSERT query.
-	 * Does not check if entity exist in the database, so query will fail if duplicate entity is being inserted.
-	 */
-	_insert<T extends Entity>(
-		entity: DeepPartial<T> | DeepPartial<T>[],
-	): Promise<any>;
-	/**
-	 * Updates entity partially. Entity can be found by a given conditions.
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient UPDATE query.
-	 * Does not check if entity exist in the database.
-	 */
-	_update<T extends Entity>(
-		criteria:
-			| string
-			| string[]
-			| number
-			| number[]
-			| Date
-			| Date[]
-			// | ObjectId
-			// | ObjectId[]
-			| any,
-		partialEntity: DeepPartial<T>,
-	): Promise<any>;
-	/**
-	 * Inserts a given entity into the database, unless a unique constraint conflicts then updates the entity
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient INSERT ... ON CONFLICT DO UPDATE/ON DUPLICATE KEY UPDATE query.
-	 */
-	_upsert<T extends Entity>(
-		entityOrEntities: DeepPartial<T> | DeepPartial<T>[],
-		conflictPathsOrOptions: any,
-	): Promise<any>;
-	/**
-	 * Deletes entities by a given criteria.
-	 * Unlike save method executes a primitive operation without cascades, relations and other operations included.
-	 * Executes fast and efficient DELETE query.
-	 * Does not check if entity exist in the database.
-	 */
-	_delete<T extends Entity>(
-		criteria:
-			| string
-			| string[]
-			| number
-			| number[]
-			| Date
-			| Date[]
-			// | ObjectId
-			// | ObjectId[]
-			| any,
-	): Promise<any>;
-	/**
-	 * Counts entities that match given options.
-	 * Useful for pagination.
-	 */
-	_count<T extends Entity>(options?: any): Promise<number>;
-	/**
-	 * Counts entities that match given conditions.
-	 * Useful for pagination.
-	 */
-	_countBy<T extends Entity>(where: any | any[]): Promise<number>;
-	/**
-	 * Return the SUM of a column
-	 */
-	_sum<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Return the AVG of a column
-	 */
-	_average<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Return the MIN of a column
-	 */
-	_minimum<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Return the MAX of a column
-	 */
-	_maximum<T extends Entity>(
-		columnName: any,
-		where?: any | any[],
-	): Promise<number | null>;
-	/**
-	 * Finds entities that match given find options.
-	 */
-	_find<T extends Entity>(options?: any): Promise<T[]>;
-	/**
-	 * Finds entities that match given find options.
-	 */
-	_findBy<T extends Entity>(where: any | any[]): Promise<T[]>;
-	/**
-	 * Finds entities that match given find options.
-	 * Also counts all entities that match given conditions,
-	 * but ignores pagination settings (from and take options).
-	 */
-	_findAndCount<T extends Entity>(options?: any): Promise<[T[], number]>;
-	/**
-	 * Finds entities that match given WHERE conditions.
-	 * Also counts all entities that match given conditions,
-	 * but ignores pagination settings (from and take options).
-	 */
-	_findAndCountBy<T extends Entity>(
-		where: any | any[],
-	): Promise<[T[], number]>;
-	/**
-	 * Finds first entity by a given find options.
-	 * If entity was not found in the database - returns null.
-	 */
-	_findOne<T extends Entity>(options: any): Promise<T | null>;
-	/**
-	 * Finds first entity that matches given where condition.
-	 * If entity was not found in the database - returns null.
-	 */
-	_findOneBy<T extends Entity>(
-		where: any | any[],
-	): Promise<T | null>;
-	/**
-	 * Finds first entity by a given find options.
-	 * If entity was not found in the database - rejects with error.
-	 */
-	_findOneOrFail<T extends Entity>(options: any): Promise<T>;
-	/**
-	 * Finds first entity that matches given where condition.
-	 * If entity was not found in the database - rejects with error.
-	 */
-	_findOneByOrFail<T extends Entity>(
-		where: any | any[],
-	): Promise<T>;
-	/**
-	 * Executes a raw SQL query and returns a raw database results.
-	 * Raw query execution is supported only by relational databases (MongoDB is not supported).
-	 */
-	_query<T extends Entity>(query: string, parameters?: any[]): Promise<T>;
-	/**
-	 * Clears all the data from the given table/collection (truncates/drops it).
+	 * Persists your entity immediately, flushing all not yet persisted changes to the database too.
+	 * Equivalent to `em.persist(e).flush()`.
 	 *
-	 * Note: this method uses TRUNCATE and may not work as you expect in transactions on some platforms.
-	 * @see https://stackoverflow.com/a/5972738/925151
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_clear<T extends Entity>(this: { new (): T }): Promise<void>;
+	persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
 	/**
-	 * MongoDB Only methods
+	 * Tells the EntityManager to make an instance managed and persistent.
+	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
+	 *
+	 * @deprecated use `persist()`
 	 */
+	persistLater(entity: AnyEntity | AnyEntity[]): void;
 	/**
-	 * MongoDB Only
-	 * Creates a cursor for a query that can be used to iterate over results from MongoDB.
+	 * Finds first entity matching your `where` query.
 	 */
-	_createCursor<T = any>(query?: any): any;
+	findOne<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOneOptions<Entity, P>,
+	): Promise<Loaded<Entity, P> | null>;
 	/**
-	 * MongoDB Only
-	 * Creates a cursor for a query that can be used to iterate over results from MongoDB.
-	 * This returns modified version of cursor that transforms each result into Entity model.
+	 * Finds first entity matching your `where` query. If nothing found, it will throw an error.
+	 * You can override the factory for creating this method via `options.failHandler` locally
+	 * or via `Configuration.findOneOrFailHandler` globally.
 	 */
-	_createEntityCursor(query?: any): any;
+	findOneOrFail<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOneOrFailOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>>;
 	/**
-	 * MongoDB Only
-	 * Execute an aggregation framework pipeline against the collection.
+	 * Creates or updates the entity, based on whether it is already present in the database.
+	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
+	 * entity instance. The method accepts either `entityName` together with the entity `data`, or just entity instance.
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com') on conflict ("email") do update set "age" = 41
+	 * const author = await em.getRepository(Author).upsert({ email: 'foo@bar.com', age: 33 });
+	 * ```
+	 *
+	 * The entity data needs to contain either the primary key, or any other unique property. Let's consider the following example, where `Author.email` is a unique property:
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com') on conflict ("email") do update set "age" = 41
+	 * // select "id" from "author" where "email" = 'foo@bar.com'
+	 * const author = await em.getRepository(Author).upsert({ email: 'foo@bar.com', age: 33 });
+	 * ```
+	 *
+	 * Depending on the driver support, this will either use a returning query, or a separate select query, to fetch the primary key if it's missing from the `data`.
+	 *
+	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
-	_aggregate<R = any>(
-		pipeline: any[],
-		options?: any,
-	): any;
+	upsert(
+		entityOrData?: EntityData<Entity> | Entity,
+		options?: NativeInsertUpdateOptions<Entity>,
+	): Promise<Entity>;
 	/**
-	 * MongoDB Only
-	 * Execute an aggregation framework pipeline against the collection.
-	 * This returns modified version of cursor that transforms each result into Entity model.
+	 * Creates or updates the entity, based on whether it is already present in the database.
+	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
+	 * entity instance.
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com') on conflict ("email") do update set "age" = 41
+	 * const authors = await em.getRepository(Author).upsertMany([{ email: 'foo@bar.com', age: 33 }, ...]);
+	 * ```
+	 *
+	 * The entity data needs to contain either the primary key, or any other unique property. Let's consider the following example, where `Author.email` is a unique property:
+	 *
+	 * ```ts
+	 * // insert into "author" ("age", "email") values (33, 'foo@bar.com'), (666, 'lol@lol.lol') on conflict ("email") do update set "age" = excluded."age"
+	 * // select "id" from "author" where "email" = 'foo@bar.com'
+	 * const author = await em.getRepository(Author).upsertMany([
+	 *   { email: 'foo@bar.com', age: 33 },
+	 *   { email: 'lol@lol.lol', age: 666 },
+	 * ]);
+	 * ```
+	 *
+	 * Depending on the driver support, this will either use a returning query, or a separate select query, to fetch the primary key if it's missing from the `data`.
+	 *
+	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
-	_aggregateEntity(
-		pipeline: any[],
-		options?: any,
-	): any;
+	upsertMany(
+		entitiesOrData?: EntityData<Entity>[] | Entity[],
+		options?: NativeInsertUpdateOptions<Entity>,
+	): Promise<Entity[]>;
 	/**
-	 * MongoDB Only
-	 * Perform a bulkWrite operation without a fluent API.
+	 * Finds all entities matching your `where` query. You can pass additional options via the `options` parameter.
 	 */
-	_bulkWrite(
-		operations: any[],
-		options?: any,
-	): Promise<any>;
+	find<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>[]>;
 	/**
-	 * MongoDB Only
-	 * Creates an index on the db and collection.
+	 * Calls `em.find()` and `em.count()` with the same arguments (where applicable) and returns the results as tuple
+	 * where first element is the array of entities and the second is the count.
 	 */
-	_createCollectionIndex(
-		fieldOrSpec: string | any,
-		options?: any,
-	): Promise<string>;
+	findAndCount<P extends string = never>(
+		where: FilterQuery<Entity>,
+		options?: FindOptions<Entity, P>,
+	): Promise<[Loaded<Entity, P>[], number]>;
 	/**
-	 * MongoDB Only
-	 * Creates multiple indexes in the collection, this method is only supported for MongoDB 2.6 or higher.
-	 * Earlier version of MongoDB will throw a command not supported error.
-	 * Index specifications are defined at http://docs.mongodb.org/manual/reference/command/createIndexes/.
+	 * Finds all entities of given type. You can pass additional options via the `options` parameter.
 	 */
-	_createCollectionIndexes(indexSpecs: any[]): Promise<string[]>;
+	findAll<P extends string = never>(
+		options?: FindOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>[]>;
 	/**
-	 * MongoDB Only
-	 * Delete multiple documents on MongoDB.
+	 * Marks entity for removal.
+	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
+	 *
+	 * To remove entities by condition, use `em.nativeDelete()`.
+	 *
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_deleteMany(query: any, options?: any): Promise<any>;
+	remove(entity: AnyEntity): EntityManager;
 	/**
-	 * MongoDB Only
-	 * Delete a document on MongoDB.
+	 * Removes an entity instance immediately, flushing all not yet persisted changes to the database too.
+	 * Equivalent to `em.remove(e).flush()`
+	 *
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_deleteOne(query: any, options?: any): Promise<any>;
+	removeAndFlush(entity: AnyEntity): Promise<void>;
 	/**
-	 * MongoDB Only
-	 * The distinct command returns returns a list of distinct values for the given key across a collection.
+	 * Marks entity for removal.
+	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
+	 *
+	 * @deprecated use `remove()`
 	 */
-	_distinct(key: string, query: any, options?: any): Promise<any>;
+	removeLater(entity: AnyEntity): void;
 	/**
-	 * MongoDB Only
-	 * Drops an index from this collection.
+	 * Flushes all changes to objects that have been queued up to now to the database.
+	 * This effectively synchronizes the in-memory state of managed objects with the database.
+	 * This method is a shortcut for `em.flush()`, in other words, it will flush the whole UoW,
+	 * not just entities registered via this particular repository.
+	 *
+	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_dropCollectionIndex(indexName: string, options?: any): Promise<any>;
+	flush(): Promise<void>;
 	/**
-	 * MongoDB Only
-	 * Drops all indexes from the collection.
+	 * Fires native insert query. Calling this has no side effects on the context (identity map).
 	 */
-	_dropCollectionIndexes(): Promise<any>;
+	nativeInsert(
+		data: Entity | EntityData<Entity>,
+		options?: NativeInsertUpdateOptions<Entity>,
+	): Promise<Primary<Entity>>;
 	/**
-	 * MongoDB Only
-	 * Find a document and delete it in one atomic operation, requires a write lock for the duration of the operation.
+	 * Fires native update query. Calling this has no side effects on the context (identity map).
 	 */
-	_findOneAndDelete(query: any, options?: any): Promise<Document>;
+	nativeUpdate(
+		where: FilterQuery<Entity>,
+		data: EntityData<Entity>,
+		options?: UpdateOptions<Entity>,
+	): Promise<number>;
 	/**
-	 * MongoDB Only
-	 * Find a document and replace it in one atomic operation, requires a write lock for the duration of the operation.
+	 * Fires native delete query. Calling this has no side effects on the context (identity map).
 	 */
-	_findOneAndReplace(
-		query: any,
-		replacement: Object,
-		options?: any,
-	): Promise<Document>;
+	nativeDelete(where: FilterQuery<Entity>, options?: DeleteOptions<Entity>): Promise<number>;
 	/**
-	 * MongoDB Only
-	 * Find a document and update it in one atomic operation, requires a write lock for the duration of the operation.
+	 * Maps raw database result to an entity and merges it to this EntityManager.
 	 */
-	_findOneAndUpdate(
-		query: any,
-		update: Object,
-		options?: any,
-	): Promise<Document>;
+	map(
+		result: EntityDictionary<Entity>,
+		options?: {
+			schema?: string;
+		},
+	): Entity;
 	/**
-	 * MongoDB Only
-	 * Retrieve all the indexes on the collection.
+	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	_collectionIndexes(): Promise<any>;
+	getReference<PK extends keyof Entity>(
+		id: Primary<Entity>,
+		options: Omit<GetReferenceOptions, 'wrapped'> & {
+			wrapped: true;
+		},
+	): Ref<Entity, PK>;
 	/**
-	 * MongoDB Only
-	 * Retrieve all the indexes on the collection.
+	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	_collectionIndexExists(indexes: string | string[]): Promise<boolean>;
+	getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
 	/**
-	 * MongoDB Only
-	 * Retrieves this collections index info.
+	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	_collectionIndexInformation(options?: { full: boolean }): Promise<any>;
+	getReference(
+		id: Primary<Entity>,
+		options: Omit<GetReferenceOptions, 'wrapped'> & {
+			wrapped: false;
+		},
+	): Entity;
 	/**
-	 * MongoDB Only
-	 * Initiate an In order bulk write operation, operations will be serially executed in the order they are added, creating a new operation for each switch in types.
+	 * Checks whether given property can be populated on the entity.
 	 */
-	_initializeOrderedBulkOp(options?: any): any;
+	canPopulate(property: string): boolean;
 	/**
-	 * MongoDB Only
-	 * Initiate a Out of order batch write operation. All operations will be buffered into insert/update/remove commands executed out of order.
+	 * Loads specified relations in batch. This will execute one query for each relation, that will populate it on all of the specified entities.
 	 */
-	_initializeUnorderedBulkOp(options?: any): any;
+	populate<P extends string = never>(
+		entities: Entity | Entity[],
+		populate: AutoPath<Entity, P>[] | boolean,
+		options?: EntityLoaderOptions<Entity, P>,
+	): Promise<Loaded<Entity, P>[]>;
 	/**
-	 * MongoDB Only
-	 * Inserts an array of documents into MongoDB.
+	 * Creates new instance of given entity and populates it with given data.
+	 * The entity constructor will be used unless you provide `{ managed: true }` in the options parameter.
+	 * The constructor will be given parameters based on the defined constructor of the entity. If the constructor
+	 * parameter matches a property name, its value will be extracted from `data`. If no matching property exists,
+	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
+	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	_insertMany(
-		docs: any[],
-		options?: any,
-	): Promise<any>;
+	create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
 	/**
-	 * MongoDB Only
-	 * Inserts a single document into MongoDB.
+	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
-	_insertOne(doc: any, options?: any): Promise<any>;
+	assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
 	/**
-	 * MongoDB Only
-	 * Returns if the collection is a capped collection.
+	 * Merges given entity to this EntityManager so it becomes managed. You can force refreshing of existing entities
+	 * via second parameter. By default it will return already loaded entities without modifying them.
 	 */
-	_isCapped(): Promise<any>;
+	merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
 	/**
-	 * MongoDB Only
-	 * Get the list of all indexes information for the collection.
+	 * Returns total number of entities matching your `where` query.
 	 */
-	_listCollectionIndexes(options?: any): any;
+	count<P extends string = never>(
+		where?: FilterQuery<Entity>,
+		options?: CountOptions<Entity, P>,
+	): Promise<number>;
 	/**
-	 * MongoDB Only
-	 * Reindex all indexes on the collection Warning: reIndex is a blocking operation (indexes are rebuilt in the foreground) and will be slow for large collections.
+	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
 	 */
-	_rename(newName: string, options?: { dropTarget?: boolean }): Promise<Collection<Document>>;
+	get em(): EntityManager;
 	/**
-	 * MongoDB Only
-	 * Replace a document on MongoDB.
+	 * Returns the underlying EntityManager instance
 	 */
-	_replaceOne(
-		query: any,
-		doc: any,
-		options?: any,
-	): Promise<Document | any>;
-	/**
-	 * MongoDB Only
-	 * Get all the collection statistics.
-	 */
-	_stats(options?: any): Promise<any>;
-	/**
-	 * MongoDB Only
-	 * Update multiple documents on MongoDB.
-	 */
-	_updateMany(
-		query: any,
-		update: any,
-		options?: any,
-	): Promise<Document | any>;
-	/**
-	 * MongoDB Only
-	 * Update a single document on MongoDB.
-	 */
-	_updateOne(
-		query: any,
-		update: any,
-		options?: any,
-	): Promise<Document | any>;
+	getEntityManager(): EntityManager;
+	validateRepositoryType(entities: Entity[] | Entity, method: string): void;
+	//#endregion MikroORM entityrepostory methods
+	//#region Moleculer-db methods
 	/** Moleculer-db methods */
 	/**
 	 * Convert DB entity to JSON object
@@ -1699,10 +989,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 	 * @returns {Promise<number>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	count<T extends Entity>(
-		options?: any,
-		query?: any,
-	): Promise<number>;
+	count<T extends Entity>(options?: any, query?: any): Promise<number>;
 	/**
 	 * Finds entities that match given find options.
 	 *
@@ -1712,10 +999,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 	 * @returns {Promise<[T | number]>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	find<T extends Entity>(
-		ctx: Context,
-		findManyOptions?: any,
-	): Promise<[T[], number]>;
+	find<T extends Entity>(ctx: Context, findManyOptions?: any): Promise<[T[], number]>;
 	/**
 	 * Finds first item by a given find options.
 	 * If entity was not found in the database - returns null.
@@ -1740,10 +1024,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 	 * @returns {Promise<T | undefined>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	findOne<T extends Entity>(
-		ctx: Context,
-		findOptions?: any,
-	): Promise<T | undefined>;
+	findOne<T extends Entity>(ctx: Context, findOptions?: any): Promise<T | undefined>;
 	/**
 	 * Gets item by id. Can use find options
 	 *
@@ -1806,25 +1087,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 		key: string | undefined | null,
 		ids: any[],
 	): Promise<T | undefined>;
-	/**
-	 * Gets multiple items by id.
-	 * Can use find options, no where clause.
-	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {Array<string> | Array<number>} ids - ids of entity
-	 * @param {Object} findOptions - find options, like relations, order, etc. No where clause
-	 * @returns {Promise<T | undefined>}
-	 * @memberof MikroORMDbAdapter
-	 * @deprecated - use findByIdWO instead. It now supports multiple ids
-	 *
-	 */
-	/* findByIdsWO<T extends Entity>(
-		ctx: Context,
-		key: string | undefined | null,
-		ids: any[],
-		findOptions?: any,
-	): Promise<T | undefined>; */
+
 	/**
 	 * List entities by filters and pagination results.
 	 *
@@ -2003,6 +1266,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> implements DbAd
 	 * @memberof MemoryDbAdapter
 	 */
 	updateById(ctx: Context, id: any, update: any): Promise<any>;
+	//#endregion Moleculer-db methods
 }
 
 export function TAdapterServiceSchemaMixin(mixinOptions?: any): ServiceSchema;

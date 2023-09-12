@@ -2,15 +2,15 @@
 
 ## Install
 
-The quickest way to get started with moleculer-db-microORM-adapter is by installing it.
+The quickest way to get started with moleculer-db-mikroorm-adapter is by installing it.
 
 #### NPM
 ```
-npm install @tyrsolutions/moleculer-db-microORM-adapter --save
+npm install @tyrsolutions/moleculer-db-mikroorm-adapter --save
 ```
 #### Yarn
 ```
-yarn add @tyrsolutions/moleculer-db-microORM-adapter
+yarn add @tyrsolutions/moleculer-db-mikroorm-adapter
 ```
 ?> Moleculer-db is optional, though it's recomended so that this module will automaticallt start and stop with services. Without it you would need to code this yourself in service lifecycle started or stopped methods.
 
@@ -23,14 +23,14 @@ npm install moleculer-db --save
 yarn add moleculer-db
 ```
 ## Create your first connection
-1. Add @tyrsolutions/moleculer-db-microORM-adapter to your project by importing or requiring it:
+1. Add @tyrsolutions/moleculer-db-mikroorm-adapter to your project by importing or requiring it:
 
    ?> The below example is using moleculer-db, moleculer-decorators-extended, TypeScript, tsconfig-paths and the adapter paramater setting
 
    ```js
     import { Service } from '@ourparentcenter/moleculer-decorators-extended';
     import DbService from 'moleculer-db';
-    import MikroORMDbAdapter from '@tyrsolutions/moleculer-db-microORM-adapter';
+    import MikroORMDbAdapter from '@tyrsolutions/moleculer-db-mikroorm-adapter';
     import { UserEntity } from '@Entities';
     @Service({
         name: 'user',

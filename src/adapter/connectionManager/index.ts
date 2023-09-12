@@ -1,6 +1,6 @@
 /*
- * moleculer-db-microORM-adapter
- * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-microORM-adapter)
+ * moleculer-db-mikroorm-adapter
+ * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-mikroorm-adapter)
  * MIT Licensed
  */
 import { isArray } from 'lodash';
@@ -13,7 +13,7 @@ import { isArray } from 'lodash';
 import { Errors } from 'moleculer';
 import MikroORMDbAdapter from '../../adapter';
 import { resolve } from 'bluebird';
-import { MikroORM, MikroORMOptions } from '@mikro-orm/core'
+import { MikroORM, MikroORMOptions } from '@mikro-orm/core';
 
 /**
  * ConnectionManager is used to store and manage multiple orm connections.
@@ -141,7 +141,7 @@ export default class ConnectionManager {
 	 * Connection won't be established, you'll need to manually call connect method to establish connection.
 	 *
 	 * @public
-	 * @param {Object} options - TypeORM data source connection options
+	 * @param {Object} options - Mikro-ORM data source connection options
 	 * @param {boolean} newConnection - Toggle to create a new instance of MikroORMDbAdapter.
 	 * @returns {Promise<connection>} - Connection
 	 *
@@ -163,17 +163,15 @@ export default class ConnectionManager {
 		if (newConnection && !existConnection) {
 			return new MikroORMDbAdapter(options);
 		} else {
-			const dbConnection: MikroORM =
-				existConnection?.isConnected()
-					? throwError()
-					: await MikroORM.init(options)
-					.catch((err: any) => {
+			const dbConnection: MikroORM = existConnection?.isConnected()
+				? throwError()
+				: await MikroORM.init(options).catch((err: any) => {
 						throw new Errors.MoleculerServerError(
 							err.message,
 							500,
 							'ERR_CONNECTION_CREATE',
 						);
-					});
+				  });
 
 			await dbConnection.isConnected().then((isConnected: boolean) => {
 				if (!isConnected) {
@@ -186,7 +184,7 @@ export default class ConnectionManager {
 				dbConnection.getSchemaGenerator().updateSchema();
 			});
 
-			activeConneciton = dbConnection
+			activeConneciton = dbConnection;
 			activeConneciton.name = options.name ?? 'default';
 
 			// create a new connection

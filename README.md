@@ -1,22 +1,22 @@
 ![Moleculer logo](http://moleculer.services/images/banner.png)
 
-<!-- [![Build Status](https://travis-ci.org/tyrsolution/moleculer-db-microORM-adapter.svg?branch=master)](https://travis-ci.org/tyrsolution/moleculer-db-microORM-adapter) -->
-[![Coverage Status](https://coveralls.io/repos/github/tyrsolution/moleculer-db-microORM-adapter/badge.svg?branch=master)](https://coveralls.io/github/tyrsolution/moleculer-db-microORM-adapter?branch=master)
-[![Known Vulnerabilities](https://snyk.io/test/github/tyrsolution/moleculer-db-microORM-adapter/badge.svg)](https://snyk.io/test/github/tyrsolution/moleculer-db-microORM-adapter)
+<!-- [![Build Status](https://travis-ci.org/tyrsolution/moleculer-db-mikroorm-adapter.svg?branch=master)](https://travis-ci.org/tyrsolution/moleculer-db-mikroorm-adapter) -->
+[![Coverage Status](https://coveralls.io/repos/github/tyrsolution/moleculer-db-mikroorm-adapter/badge.svg?branch=master)](https://coveralls.io/github/tyrsolution/moleculer-db-mikroorm-adapter?branch=master)
+[![Known Vulnerabilities](https://snyk.io/test/github/tyrsolution/moleculer-db-mikroorm-adapter/badge.svg)](https://snyk.io/test/github/tyrsolution/moleculer-db-mikroorm-adapter)
 
-# @tyrsolutions/moleculer-db-microORM-adapter [![NPM version](https://img.shields.io/npm/v/@tyrsolutions/moleculer-db-microORM-adapter.svg)](https://www.npmjs.com/package/@tyrsolutions/moleculer-db-microORM-adapter)
-A TypeORM adapter for moleculer
+# @tyrsolutions/moleculer-db-mikroorm-adapter [![NPM version](https://img.shields.io/npm/v/@tyrsolutions/moleculer-db-mikroorm-adapter.svg)](https://www.npmjs.com/package/@tyrsolutions/moleculer-db-mikroorm-adapter)
+A Mikro-ORM adapter for moleculer
 
 
 ## Features
 
-- All supported TypeORM databases
-- Active Record methodology for entities or data mapping methodology if entity class doesn't extend TypeORM BaseEntity built in
-- Connection Manager - manage your existing connections or create new ones to different database systems on the same service. New connections are a new instance of ```MikroORMDbAdapter``` if ```true``` is added after datasource options. If ```true``` is not specified, then the connection will be created with raw TypeORM datasource and not inherit class methods, only TypeORM methods will be available (about the same as using typeorm by itself).
+- All supported Mikro-ORM databases
+- Active Record methodology for entities or data mapping methodology if entity class doesn't extend Mikro-ORM BaseEntity built in
+- Connection Manager - manage your existing connections or create new ones to different database systems on the same service. New connections are a new instance of ```MikroORMDbAdapter``` if ```true``` is added after datasource options. If ```true``` is not specified, then the connection will be created with raw Mikro-ORM datasource and not inherit class methods, only Mikro-ORM methods will be available (about the same as using typeorm by itself).
 - All entities added to MikroORMDbAdapter and model array are added to this.adapter
   - Base entity ```this.adapter```
   - any additional entity ```this.adapter.<entity name>``` when model has more than one entity. Note: additional entities added to ```model:``` are tables in the same database.
-- Repository and entityManager surfaced for ```this.adapter``` and additional entities on same adapter instance  ```this.adapter.<entity name>``` if more advanced TypeORM features are required
+- Repository and entityManager surfaced for ```this.adapter``` and additional entities on same adapter instance  ```this.adapter.<entity name>``` if more advanced Mikro-ORM features are required
 - Database connections for service start and stop when service does, so closing db connection not necessary.
 - Setting ```idField``` in service schema is used to specify own preference and obfusicate the true db id field in the entire response, includng returned relations. This gets converted to the actual db field name automatically when querying the database, then converted back to idField on response. If you wish to use the actual db id field of the database, change idField to the database id field name.
 - The service setting ```fields:[]``` filters the response, just like in moleculer-db, so if you do change the idField in settings, be sure to change the id field in service settings ```fields``` as well.
@@ -25,11 +25,11 @@ A TypeORM adapter for moleculer
 ## Install
 #### NPM
 ```
-npm install moleculer-db @tyrsolutions/moleculer-db-microORM-adapter --save
+npm install moleculer-db @tyrsolutions/moleculer-db-mikroorm-adapter --save
 ```
 #### Yarn
 ```
-yarn add moleculer-db @tyrsolutions/moleculer-db-microORM-adapter
+yarn add moleculer-db @tyrsolutions/moleculer-db-mikroorm-adapter
 ```
 
 ## Usage
@@ -1165,7 +1165,7 @@ Connection won't be established, you'll need to manually call connect method to 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `options` | `Object` | **required** | TypeORM data source connection options |
+| `options` | `Object` | **required** | Mikro-ORM data source connection options |
 | `newConnection` | `boolean` | `false` | Toggle to create a new instance of MikroORMDbAdapter. |
 
 ### Results
