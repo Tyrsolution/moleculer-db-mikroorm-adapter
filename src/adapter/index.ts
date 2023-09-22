@@ -32,7 +32,13 @@ import {
 	unset,
 } from 'lodash';
 import { all, method, reject, resolve } from 'bluebird';
-import moleculer, { Service, ServiceBroker, Errors, Context } from 'moleculer';
+import moleculer, {
+	Service,
+	ServiceBroker,
+	Errors,
+	Context,
+	ServiceSettingSchema,
+} from 'moleculer';
 import {
 	AnyEntity,
 	EntityManager,
@@ -504,9 +510,9 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Create new record or records.
 	 *
 	 * @methods
-	 * @param {Object | Array<Object>} entityOrEntities - record(s) to create
-	 * @param {Object?} options - Optional MongoDB insert options
-	 * @returns {Promise<Object | Array<Object>>}
+	 * @param {Object | Object[]} entityOrEntities - record(s) to create
+	 * @param {Object?} options - Optional create options
+	 * @returns {Promise<Object | Object[]>>}
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async create<T extends Entity>(
@@ -514,33 +520,43 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		entityOrEntities: T | T[],
 		options?: any,
 	): Promise<any> {
-		this.logger!.debug('Transforming entity id...');
-		const entity = this.beforeSaveTransformID(entityOrEntities, this.service.settings.idField);
-		this.logger!.debug(`Attempting to create entity: ${JSON.stringify(entity)}`);
+		this.logger!.debug(
+			`Attempting to create entit(y/ies): ${JSON.stringify(entityOrEntities)}`,
+		);
 		return isArray(entityOrEntities)
-			? await this['_upsertMany'](entity, options)
+			? await resolve(
+					entityOrEntities.map((entity: any) => this['_create'](entity, options)),
+			  ).then(
+					async (docs: any) =>
+						await this['_upsertMany'](docs, options)
+							.then(async (docArray: any) => {
+								this.logger!.debug('Transforming created entity...');
+								return await this.transformDocuments(ctx, ctx.params, docArray);
+							})
+							.catch((err: any) => {
+								this.logger!.error(`Failed to create entity: ${err}`);
+								return new Errors.MoleculerServerError(
+									`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
+									500,
+									'FAILED_TO_CREATE_ENTITY',
+									err,
+								);
+							}),
+			  )
+			: await resolve(this['_create'](entityOrEntities, options))
 					.then(async (doc: any) => {
-						this.logger!.debug('Transforming created entity...');
+						this.logger!.debug('Persiting created entity and flushing');
+						await this['_persistAndFlush'](doc);
+						return doc;
+					})
+					.then(async (doc: any) => {
+						this.logger!.debug('Transforming created entity and returning it...');
 						return await this.transformDocuments(ctx, ctx.params, doc);
 					})
 					.catch((err: any) => {
 						this.logger!.error(`Failed to create entity: ${err}`);
 						return new Errors.MoleculerServerError(
-							`Failed to create entity: ${JSON.stringify(entity)}`,
-							500,
-							'FAILED_TO_CREATE_ENTITY',
-							err,
-						);
-					})
-			: await this['_create'](entity, options)
-					.then(async (doc: any) => {
-						this.logger!.debug('Transforming created entity...');
-						return await this.transformDocuments(ctx, ctx.params, doc);
-					})
-					.catch((err: any) => {
-						this.logger!.error(`Failed to create entity: ${err}`);
-						return new Errors.MoleculerServerError(
-							`Failed to create entity: ${JSON.stringify(entity)}`,
+							`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
 							500,
 							'FAILED_TO_CREATE_ENTITY',
 							err,
@@ -1025,12 +1041,12 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @memberof MikroORMDbAdapter
 	 */
 	public list(ctx: Context, params: any): object {
-		const countParams = Object.assign({}, params);
+		const countParams = { ...params };
 		// Remove pagination params
-		if (countParams && countParams.limit) {
+		if (countParams?.limit) {
 			countParams.limit = null;
 		}
-		if (countParams && countParams.offset) {
+		if (countParams?.offset) {
 			countParams.offset = null;
 		}
 		if (params.limit == null) {
@@ -1285,12 +1301,11 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				// Filter excludeFields
 				.then((json) => {
 					this.logger!.debug('Attempting to filter excludeFields..');
+					const paramExcludeFields = isString(params.excludeFields)
+						? params.excludeFields.split(/\s+/)
+						: params.excludeFields;
 					const askedExcludeFields =
-						ctx && params.excludeFields
-							? isString(params.excludeFields)
-								? params.excludeFields.split(/\s+/)
-								: params.excludeFields
-							: [];
+						ctx && params.excludeFields ? paramExcludeFields : [];
 					const excludeFields = askedExcludeFields.concat(
 						this.service.settings.excludeFields || [],
 					);
@@ -1619,7 +1634,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @memberof MikroORMDbAdapter
 	 */
 	public sanitizeParams(ctx: any, params: any) {
-		const p = Object.assign({}, params);
+		const p = { ...params };
 
 		// Convert from string to number
 		if (typeof p.limit === 'string') {
@@ -1704,7 +1719,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export const MikroORMServiceSchemaMixin = (mixinOptions?: any) => {
+export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) => {
 	const mixin = defaultsDeep(
 		{
 			// Must overwrite it
@@ -2200,13 +2215,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: any) => {
 				 * @returns {Promise}
 				 */
 				beforeEntityChange(type: string | undefined, entity: any, ctx: any): any {
-					/* const eventName = `beforeEntity${capitalize(type)}`;
-					// @ts-ignore
-					if (this.schema[eventName] == null) {
-						return resolve(entity);
-					}
-					// @ts-ignore
-					return resolve(this.schema[eventName].call(this, entity, ctx)); */
 					// @ts-ignore
 					return this.adapter.beforeEntityChange(type, entity, ctx);
 				},
@@ -2428,7 +2436,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: any) => {
 						.catch((err: any) => {
 							// @ts-ignore
 							this.logger.error(`Failed to create entity: ${err}`);
-							new Errors.MoleculerServerError(
+							return new Errors.MoleculerServerError(
 								`Failed to create entity(s): ${entityOrEntities}`,
 								500,
 								'FAILED_TO_CREATE_ENTITY',
