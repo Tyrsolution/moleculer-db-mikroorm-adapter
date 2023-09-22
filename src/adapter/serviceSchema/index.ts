@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable capitalized-comments */
 /*
  * moleculer-db
  * Copyright (c) 2019 MoleculerJS (https://github.com/moleculerjs/moleculer-db)
@@ -18,7 +20,8 @@ import { Context } from 'moleculer';
  * @module Service
  */
 // module.exports = function (mixinOptions?: any) {
-export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const MikroORMServiceSchemaMixin = (mixinOptions?: any) => {
 	const mixin = defaultsDeep(
 		{
 			/**
@@ -97,7 +100,7 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 					},
 					handler(ctx: Context): any {
 						// @ts-ignore
-						let params = this.adapter.sanitizeParams(ctx, ctx.params);
+						const params = this.adapter.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
 						return this.adapter.find(ctx, params);
 					},
@@ -132,7 +135,7 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 					},
 					handler(ctx: Context): any {
 						// @ts-ignore
-						let params = this.adapter.sanitizeParams(ctx, ctx.params);
+						const params = this.adapter.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
 						return this.adapter.count(ctx, params);
 					},
@@ -211,7 +214,7 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 					},
 					handler(ctx: Context): any {
 						// @ts-ignore
-						let params = this.adapter.sanitizeParams(ctx, ctx.params);
+						const params = this.adapter.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
 						return this.adapter.list(ctx, params);
 					},
@@ -294,7 +297,7 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 					},
 					handler(ctx: Context): any {
 						// @ts-ignore
-						let params = this.adapter.sanitizeParams(ctx, ctx.params);
+						const params = this.adapter.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
 						return this.adapter.findByIdWO(null, params);
 					},
@@ -359,15 +362,15 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 				 * @returns {Object|Array<Object>} Found entity(ies).
 				 */
 				getById(ctx: Context, id: string | any[], decoding: boolean): any {
-					return resolve().then(() => {
+					return resolve().then(() =>
 						// @ts-ignore
-						return this.adapter.findById(
+						this.adapter.findById(
 							ctx,
 							null,
 							// @ts-ignore
 							decoding ? this.adapter.decodeID(id) : id,
-						);
-					});
+						),
+					);
 				},
 
 				/**
@@ -413,7 +416,10 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 					// @ts-ignore
 					this.broker[this.settings.cacheCleanEventType](`cache.clean.${this.fullName}`);
 					// @ts-ignore
-					if (this.broker.cacher) return this.broker.cacher.clean(`${this.fullName}.**`);
+					if (this.broker.cacher) {
+						// @ts-ignore
+						return this.broker.cacher.clean(`${this.fullName}.**`);
+					}
 					return resolve();
 				},
 
@@ -425,7 +431,7 @@ export const TAdapterServiceSchemaMixin = (mixinOptions?: any) => {
 				 * @param {Array|Object} docs
 				 * @returns {Array|Object}
 				 */
-				transformDocuments(ctx: Context, params: {}, docs: any): any {
+				transformDocuments(ctx: Context, params: object, docs: any): any {
 					// @ts-ignore
 					return this.adapter.transformDocuments(ctx, params, docs);
 				},

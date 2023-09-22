@@ -1,3 +1,4 @@
+// eslint-disable-next-line capitalized-comments
 /*
  * moleculer-db-mikroorm-adapter
  * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-mikroorm-adapter)

@@ -3,13 +3,13 @@
 Moleculer has an auto alias feature with [moleculer-web](https://github.com/moleculerjs/moleculer-web) and [moleculer-db](https://github.com/moleculerjs/moleculer-db). This adapter builds off that by providing a few different ways to alter the service schema to have this adapters schema be presented by moleculer-web instead of moleculer-db.
 
 ## Mixin merging
-If using the provided schema ```TAdapterServiceSchemaMixin``` to mix with ```moleculer-db``` then you will want to put this adapters schema in the mixins attribute before moleculer-db schema:
+If using the provided schema ```MikroORMServiceSchemaMixin``` to mix with ```moleculer-db``` then you will want to put this adapters schema in the mixins attribute before moleculer-db schema:
 
 service.js:
 ```js
 {
     ...
-    mixins: [TAdapterServiceSchemaMixin(), DBService]
+    mixins: [MikroORMServiceSchemaMixin(), DBService]
 }
 ```
 This will allow moleculer-web to server this adapters default alias rest methods for get, create, insert, update, remove, list out of the box for services when the ```autoAliases``` servie attribute is enabled.
@@ -21,7 +21,7 @@ service.js:
 ```js
 {
     ...
-    mixins: [TAdapterServiceSchemaMixin(DBService)]
+    mixins: [MikroORMServiceSchemaMixin(DBService)]
 }
 ```
 
@@ -34,7 +34,7 @@ service.js:
 ```js
 {
     ...
-    mixins: [TAdapterServiceSchemaMixin()]
+    mixins: [MikroORMServiceSchemaMixin()]
 }
 ```
 !> Note - that when you use this adapters schema, you will no longer have access to moleculer-dbs nedb database.

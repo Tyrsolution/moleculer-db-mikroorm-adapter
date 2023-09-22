@@ -1,3 +1,5 @@
+/* eslint-disable capitalized-comments */
+/* eslint-disable max-len */
 /*
  * moleculer-db-mikroorm-adapter
  * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-mikroorm-adapter)
@@ -32,7 +34,6 @@ import {
 	MergeOptions,
 	MetadataStorage,
 	MikroORM,
-	MikroORMOptions,
 	NativeInsertUpdateOptions,
 	Options,
 	Primary,
@@ -42,22 +43,23 @@ import {
 } from '@mikro-orm/core';
 import { AutoPath } from '@mikro-orm/core/typings';
 import { Context, Service, ServiceBroker, ServiceSchema } from 'moleculer';
+import { ConnectionManager } from './connectionManager';
 
 export interface ListParams {
 	/**
 	 * Moleculer-db paramaters
 	 */
-	populate?: String | String[];
-	fields?: String | String[];
-	excludeFields?: String | String[];
-	page?: Number;
-	pageSize?: Number;
-	sort?: String;
-	search?: String;
-	searchFields?: String | String[];
-	query?: Object | String;
-	limit?: String | Number;
-	offset?: String | Number;
+	populate?: string | string[];
+	fields?: string | string[];
+	excludeFields?: string | string[];
+	page?: number;
+	pageSize?: number;
+	sort?: string;
+	search?: string;
+	searchFields?: string | string[];
+	query?: object | string;
+	limit?: string | number | null;
+	offset?: string | number | null;
 	/**
 	 * Mikro-ORM paramaters
 	 * If paramaters are missing it's because they are deprecated so we don't need them
@@ -150,80 +152,9 @@ export interface ListParams {
 	 */
 	transaction?: boolean;
 }
-declare class ConnectionManager {
-	/**
-	 * List of connections registered in this connection manager.
-	 *
-	 * @public
-	 * @returns {MikroORM[]} - List of connections
-	 *
-	 * @connectionmanager
-	 */
-	get connections(): MikroORM[];
-	/**
-	 * Internal lookup to quickly get from a connection name to the Connection object.
-	 */
-	private readonly connectionMap;
-	/**
-	 * Checks if connection with the given name exist in the manager.
-	 *
-	 * @public
-	 * @param {string} name - Connection name
-	 * @returns {boolean} - True if connection exist, false otherwise
-	 *
-	 * @connectionmanager
-	 */
-	has(name: string): boolean;
-	/**
-	 * Gets registered connection with the given name.
-	 * If connection name is not given then it will get a default connection.
-	 * Throws error if connection with the given name was not found.
-	 *
-	 * @public
-	 * @param {string} name - Connection name
-	 * @returns {MikroORM} - Connection
-	 *
-	 * @connectionmanager
-	 */
-	get(name?: string): MikroORM;
-	/**
-	 * Removes registered connection with the given name.
-	 * If connection name is not given then it will get a default connection.
-	 * Throws error if connection with the given name was not found.
-	 *
-	 * @public
-	 * @param {string} name - Connection name
-	 *
-	 * @connectionmanager
-	 */
-	remove(name?: string): void;
-	/**
-	 * closes registered connection with the given name and removes it from
-	 * ConnectionManager.
-	 * If connection name is not given then it will get a default connection.
-	 * Throws error if connection with the given name was not found.
-	 *
-	 * @public
-	 * @param {string | Array<string>} name - Connection name
-	 *
-	 * @connectionmanager
-	 */
-	close(name?: string | Array<string>): Promise<boolean | Promise<boolean>[]>;
-	/**
-	 * Creates a new connection based on the given connection options and registers it in the manager.
-	 * Connection won't be established, you'll need to manually call connect method to establish connection.
-	 *
-	 * @public
-	 * @param {Object} options - Mikro-ORM data source connection options
-	 * @returns {Promise<connection>} - Connection
-	 *
-	 * @connectionmanager
-	 */
-	create(options: MikroORMOptions, newConnection?: boolean): Promise<any>;
-}
 
 export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver = IDatabaseDriver> {
-	//#region DbAdapter properties
+	// #region DbAdapter properties
 	[key: string]: any;
 	/**
 	 * Mikro-ORM Entity Repository
@@ -238,8 +169,8 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 */
 	connectionManager: ConnectionManager | undefined;
 	orm: MikroORM<D>;
-	//#endregion DbAdapter properties
-	//#region MicroORM orm methods
+	// #endregion DbAdapter properties
+	// #region MicroORM orm methods
 	/**
 	 * MicroORM orm methods
 	 */
@@ -300,8 +231,8 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * Shortcut for `orm.getEntityGenerator()`
 	 */
 	get entityGenerator(): IEntityGenerator;
-	//#endregion MicroORM orm methods
-	//#region MikroORM entityrepostory methods
+	// #endregion MicroORM orm methods
+	// #region MikroORM entityrepostory methods
 	/**
 	 * MikroORM entityrepostory methods
 	 */
@@ -311,25 +242,25 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	persist(entity: AnyEntity | AnyEntity[]): EntityManager;
+	_persist(entity: AnyEntity | AnyEntity[]): EntityManager;
 	/**
 	 * Persists your entity immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.persist(e).flush()`.
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
+	_persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
 	/**
 	 * Tells the EntityManager to make an instance managed and persistent.
 	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `persist()`
 	 */
-	persistLater(entity: AnyEntity | AnyEntity[]): void;
+	_persistLater(entity: AnyEntity | AnyEntity[]): void;
 	/**
 	 * Finds first entity matching your `where` query.
 	 */
-	findOne<P extends string = never>(
+	_findOne<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOneOptions<Entity, P>,
 	): Promise<Loaded<Entity, P> | null>;
@@ -338,7 +269,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * You can override the factory for creating this method via `options.failHandler` locally
 	 * or via `Configuration.findOneOrFailHandler` globally.
 	 */
-	findOneOrFail<P extends string = never>(
+	_findOneOrFail<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOneOrFailOptions<Entity, P>,
 	): Promise<Loaded<Entity, P>>;
@@ -364,7 +295,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 *
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
-	upsert(
+	_upsert(
 		entityOrData?: EntityData<Entity> | Entity,
 		options?: NativeInsertUpdateOptions<Entity>,
 	): Promise<Entity>;
@@ -393,14 +324,14 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 *
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
-	upsertMany(
+	_upsertMany(
 		entitiesOrData?: EntityData<Entity>[] | Entity[],
 		options?: NativeInsertUpdateOptions<Entity>,
 	): Promise<Entity[]>;
 	/**
 	 * Finds all entities matching your `where` query. You can pass additional options via the `options` parameter.
 	 */
-	find<P extends string = never>(
+	_find<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOptions<Entity, P>,
 	): Promise<Loaded<Entity, P>[]>;
@@ -408,14 +339,14 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * Calls `em.find()` and `em.count()` with the same arguments (where applicable) and returns the results as tuple
 	 * where first element is the array of entities and the second is the count.
 	 */
-	findAndCount<P extends string = never>(
+	_findAndCount<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOptions<Entity, P>,
 	): Promise<[Loaded<Entity, P>[], number]>;
 	/**
 	 * Finds all entities of given type. You can pass additional options via the `options` parameter.
 	 */
-	findAll<P extends string = never>(
+	_findAll<P extends string = never>(
 		options?: FindOptions<Entity, P>,
 	): Promise<Loaded<Entity, P>[]>;
 	/**
@@ -426,21 +357,21 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	remove(entity: AnyEntity): EntityManager;
+	_remove(entity: AnyEntity): EntityManager;
 	/**
 	 * Removes an entity instance immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.remove(e).flush()`
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	removeAndFlush(entity: AnyEntity): Promise<void>;
+	_removeAndFlush(entity: AnyEntity): Promise<void>;
 	/**
 	 * Marks entity for removal.
 	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `remove()`
 	 */
-	removeLater(entity: AnyEntity): void;
+	_removeLater(entity: AnyEntity): void;
 	/**
 	 * Flushes all changes to objects that have been queued up to now to the database.
 	 * This effectively synchronizes the in-memory state of managed objects with the database.
@@ -449,18 +380,18 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	flush(): Promise<void>;
+	_flush(): Promise<void>;
 	/**
 	 * Fires native insert query. Calling this has no side effects on the context (identity map).
 	 */
-	nativeInsert(
+	_nativeInsert(
 		data: Entity | EntityData<Entity>,
 		options?: NativeInsertUpdateOptions<Entity>,
 	): Promise<Primary<Entity>>;
 	/**
 	 * Fires native update query. Calling this has no side effects on the context (identity map).
 	 */
-	nativeUpdate(
+	_nativeUpdate(
 		where: FilterQuery<Entity>,
 		data: EntityData<Entity>,
 		options?: UpdateOptions<Entity>,
@@ -468,11 +399,11 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	/**
 	 * Fires native delete query. Calling this has no side effects on the context (identity map).
 	 */
-	nativeDelete(where: FilterQuery<Entity>, options?: DeleteOptions<Entity>): Promise<number>;
+	_nativeDelete(where: FilterQuery<Entity>, options?: DeleteOptions<Entity>): Promise<number>;
 	/**
 	 * Maps raw database result to an entity and merges it to this EntityManager.
 	 */
-	map(
+	_map(
 		result: EntityDictionary<Entity>,
 		options?: {
 			schema?: string;
@@ -481,7 +412,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	getReference<PK extends keyof Entity>(
+	_getReference<PK extends keyof Entity>(
 		id: Primary<Entity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: true;
@@ -490,11 +421,11 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
+	_getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	getReference(
+	_getReference(
 		id: Primary<Entity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: false;
@@ -503,11 +434,11 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	/**
 	 * Checks whether given property can be populated on the entity.
 	 */
-	canPopulate(property: string): boolean;
+	_canPopulate(property: string): boolean;
 	/**
 	 * Loads specified relations in batch. This will execute one query for each relation, that will populate it on all of the specified entities.
 	 */
-	populate<P extends string = never>(
+	_populate<P extends string = never>(
 		entities: Entity | Entity[],
 		populate: AutoPath<Entity, P>[] | boolean,
 		options?: EntityLoaderOptions<Entity, P>,
@@ -520,20 +451,20 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
 	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
+	_create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
 	/**
 	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
-	assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
+	_assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
 	/**
 	 * Merges given entity to this EntityManager so it becomes managed. You can force refreshing of existing entities
 	 * via second parameter. By default it will return already loaded entities without modifying them.
 	 */
-	merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
+	_merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
 	/**
 	 * Returns total number of entities matching your `where` query.
 	 */
-	count<P extends string = never>(
+	_count<P extends string = never>(
 		where?: FilterQuery<Entity>,
 		options?: CountOptions<Entity, P>,
 	): Promise<number>;
@@ -545,9 +476,13 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * Returns the underlying EntityManager instance
 	 */
 	getEntityManager(): EntityManager;
-	validateRepositoryType(entities: Entity[] | Entity, method: string): void;
-	//#endregion MikroORM entityrepostory methods
-	//#region Moleculer-db methods
+	/**
+	 * Returns the underlying EntityManager instance
+	 */
+	_getEntityManager(): EntityManager;
+	_validateRepositoryType(entities: Entity[] | Entity, method: string): void;
+	// #endregion MikroORM entityrepostory methods
+	// #region Moleculer-db methods
 }
 
 export default class MikroORMDbAdapter<
@@ -555,7 +490,7 @@ export default class MikroORMDbAdapter<
 	D extends IDatabaseDriver = IDatabaseDriver,
 > implements DbAdapter<Entity>
 {
-	//#region MikroORMDbAdapter properties
+	// #region MikroORMDbAdapter properties
 	[index: string]: any;
 	/**
 	 * Grants access to the connection manager instance which is used to create and manage connections.
@@ -566,9 +501,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @properties
 	 */
-	connectionManager: ConnectionManager | undefined;
-	private _entity;
-	private MikroORM;
+	public connectionManager: ConnectionManager | undefined;
 	/**
 	 * Grants access to the entity manager of the connection.
 	 * Called using this.adapter.manager
@@ -577,7 +510,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @properties
 	 */
-	manager: D[typeof EntityManagerType] & EntityManager;
+	public manager: D[typeof EntityManagerType] & EntityManager;
 	/**
 	 * Grants access to the entity repository of the connection.
 	 * Called using this.adapter.repository
@@ -586,15 +519,40 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @properties
 	 */
-	repository: EntityRepository<Entity> | undefined;
-	orm: MikroORM<D>;
+	public repository: EntityRepository<Entity> | undefined;
+	public orm: MikroORM<D>;
+	private _entity;
+	// eslint-disable-next-line @typescript-eslint/naming-convention
+	private MikroORM;
 	/**
 	 * Creates an instance of Mikro-ORM db service.
 	 *
 	 * @param {MikroORMOptions} opts
 	 *
 	 */
-	constructor(options: Options<D> | Configuration<D>);
+	public constructor(options: Options<D> | Configuration<D>);
+	// #region Micro-ORM orm methods
+	/**
+	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
+	 */
+	public get em(): EntityManager;
+	/**
+	 * Shortcut for `orm.getSchemaGenerator()`
+	 */
+	public get schema(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
+	/**
+	 * Shortcut for `orm.getSeeder()`
+	 */
+	public get seeder(): ISeedManager;
+	/**
+	 * Shortcut for `orm.getMigrator()`
+	 */
+	public get migrator(): IMigrator;
+	/**
+	 * Shortcut for `orm.getEntityGenerator()`
+	 */
+	public get entityGenerator(): IEntityGenerator;
+	// #endregion Micro-ORM orm methods
 	/**
 	 * Initialize adapter
 	 * It will be called in `broker.start()` and is used internally
@@ -605,7 +563,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	init(broker: ServiceBroker, service: Service): void;
+	public init(broker: ServiceBroker, service: Service): void;
 	/**
 	 * Connects to database.
 	 * It will be called in `broker.start()` and is used internally.
@@ -616,7 +574,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise}
 	 *
 	 */
-	connect(): Promise<any>;
+	public connect(): Promise<any>;
 	/**
 	 * Disconnects all connections from database and connection manager.
 	 * It will be called in `broker.stop()` and is used internally.
@@ -626,71 +584,55 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @returns {Promise}
 	 */
-	disconnect(): Promise<any>;
-	//#endregion MikroORMDbAdapter properties
-	//#region MicroORM orm methods
+	public disconnect(): Promise<any>;
+	// #endregion MikroORMDbAdapter properties
+	// #region MicroORM orm methods
 	/**
 	 * MicroORM orm methods
 	 */
 	/**
 	 * Reconnects, possibly to a different database.
 	 */
-	reconnect(options?: Options): Promise<void>;
+	public reconnect(options?: Options): Promise<void>;
 	/**
 	 * Checks whether the database connection is active.
 	 */
-	isConnected(): Promise<boolean>;
+	public isConnected(): Promise<boolean>;
 	/**
 	 * Closes the database connection.
 	 */
-	close(force?: boolean): Promise<void>;
+	public close(force?: boolean): Promise<void>;
 	/**
 	 * Gets the `MetadataStorage`.
 	 */
-	getMetadata(): MetadataStorage;
+	public getMetadata(): MetadataStorage;
 	/**
 	 * Gets the `EntityMetadata` instance when provided with the `entityName` parameter.
 	 */
-	getMetadata(entityName: EntityName<Entity>): EntityMetadata<Entity>;
-	discoverEntities(): Promise<void>;
+	public getMetadata(entityName: EntityName<Entity>): EntityMetadata<Entity>;
+	public discoverEntities(): Promise<void>;
 	/**
 	 * Allows dynamically discovering new entity by reference, handy for testing schema diffing.
 	 */
-	discoverEntity(entities: Constructor | Constructor[]): Promise<void>;
+	public discoverEntity(entities: Constructor | Constructor[]): Promise<void>;
 	/**
 	 * Gets the SchemaGenerator.
 	 */
-	getSchemaGenerator(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
+	public getSchemaGenerator(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
 	/**
 	 * Gets the EntityGenerator.
 	 */
-	getEntityGenerator<T extends IEntityGenerator = IEntityGenerator>(): T;
+	public getEntityGenerator<T extends IEntityGenerator = IEntityGenerator>(): T;
 	/**
 	 * Gets the Migrator.
 	 */
-	getMigrator<T extends IMigrator = IMigrator>(): T;
+	public getMigrator<T extends IMigrator = IMigrator>(): T;
 	/**
 	 * Gets the SeedManager
 	 */
-	getSeeder<T extends ISeedManager = ISeedManager>(): T;
-	/**
-	 * Shortcut for `orm.getSchemaGenerator()`
-	 */
-	get schema(): ReturnType<ReturnType<D['getPlatform']>['getSchemaGenerator']>;
-	/**
-	 * Shortcut for `orm.getSeeder()`
-	 */
-	get seeder(): ISeedManager;
-	/**
-	 * Shortcut for `orm.getMigrator()`
-	 */
-	get migrator(): IMigrator;
-	/**
-	 * Shortcut for `orm.getEntityGenerator()`
-	 */
-	get entityGenerator(): IEntityGenerator;
-	//#endregion MicroORM orm methods
-	//#region MikroORM entityrepostory methods
+	public getSeeder<T extends ISeedManager = ISeedManager>(): T;
+	// #endregion MicroORM orm methods
+	// #region MikroORM entityrepostory methods
 	/**
 	 * MikroORM entityrepostory methods
 	 */
@@ -700,25 +642,25 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	persist(entity: AnyEntity | AnyEntity[]): EntityManager;
+	public _persist(entity: AnyEntity | AnyEntity[]): EntityManager;
 	/**
 	 * Persists your entity immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.persist(e).flush()`.
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
+	public _persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
 	/**
 	 * Tells the EntityManager to make an instance managed and persistent.
 	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `persist()`
 	 */
-	persistLater(entity: AnyEntity | AnyEntity[]): void;
+	public _persistLater(entity: AnyEntity | AnyEntity[]): void;
 	/**
 	 * Finds first entity matching your `where` query.
 	 */
-	findOne<P extends string = never>(
+	public _findOne<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOneOptions<Entity, P>,
 	): Promise<Loaded<Entity, P> | null>;
@@ -727,7 +669,7 @@ export default class MikroORMDbAdapter<
 	 * You can override the factory for creating this method via `options.failHandler` locally
 	 * or via `Configuration.findOneOrFailHandler` globally.
 	 */
-	findOneOrFail<P extends string = never>(
+	public _findOneOrFail<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOneOrFailOptions<Entity, P>,
 	): Promise<Loaded<Entity, P>>;
@@ -753,7 +695,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
-	upsert(
+	public _upsert(
 		entityOrData?: EntityData<Entity> | Entity,
 		options?: NativeInsertUpdateOptions<Entity>,
 	): Promise<Entity>;
@@ -782,14 +724,14 @@ export default class MikroORMDbAdapter<
 	 *
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
-	upsertMany(
+	public _upsertMany(
 		entitiesOrData?: EntityData<Entity>[] | Entity[],
 		options?: NativeInsertUpdateOptions<Entity>,
 	): Promise<Entity[]>;
 	/**
 	 * Finds all entities matching your `where` query. You can pass additional options via the `options` parameter.
 	 */
-	find<P extends string = never>(
+	public _find<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOptions<Entity, P>,
 	): Promise<Loaded<Entity, P>[]>;
@@ -797,14 +739,14 @@ export default class MikroORMDbAdapter<
 	 * Calls `em.find()` and `em.count()` with the same arguments (where applicable) and returns the results as tuple
 	 * where first element is the array of entities and the second is the count.
 	 */
-	findAndCount<P extends string = never>(
+	public _findAndCount<P extends string = never>(
 		where: FilterQuery<Entity>,
 		options?: FindOptions<Entity, P>,
 	): Promise<[Loaded<Entity, P>[], number]>;
 	/**
 	 * Finds all entities of given type. You can pass additional options via the `options` parameter.
 	 */
-	findAll<P extends string = never>(
+	public _findAll<P extends string = never>(
 		options?: FindOptions<Entity, P>,
 	): Promise<Loaded<Entity, P>[]>;
 	/**
@@ -815,21 +757,21 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	remove(entity: AnyEntity): EntityManager;
+	public _remove(entity: AnyEntity): EntityManager;
 	/**
 	 * Removes an entity instance immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.remove(e).flush()`
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	removeAndFlush(entity: AnyEntity): Promise<void>;
+	public _removeAndFlush(entity: AnyEntity): Promise<void>;
 	/**
 	 * Marks entity for removal.
 	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `remove()`
 	 */
-	removeLater(entity: AnyEntity): void;
+	public _removeLater(entity: AnyEntity): void;
 	/**
 	 * Flushes all changes to objects that have been queued up to now to the database.
 	 * This effectively synchronizes the in-memory state of managed objects with the database.
@@ -838,18 +780,18 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	flush(): Promise<void>;
+	public _flush(): Promise<void>;
 	/**
 	 * Fires native insert query. Calling this has no side effects on the context (identity map).
 	 */
-	nativeInsert(
+	public _nativeInsert(
 		data: Entity | EntityData<Entity>,
 		options?: NativeInsertUpdateOptions<Entity>,
 	): Promise<Primary<Entity>>;
 	/**
 	 * Fires native update query. Calling this has no side effects on the context (identity map).
 	 */
-	nativeUpdate(
+	public _nativeUpdate(
 		where: FilterQuery<Entity>,
 		data: EntityData<Entity>,
 		options?: UpdateOptions<Entity>,
@@ -857,11 +799,14 @@ export default class MikroORMDbAdapter<
 	/**
 	 * Fires native delete query. Calling this has no side effects on the context (identity map).
 	 */
-	nativeDelete(where: FilterQuery<Entity>, options?: DeleteOptions<Entity>): Promise<number>;
+	public _nativeDelete(
+		where: FilterQuery<Entity>,
+		options?: DeleteOptions<Entity>,
+	): Promise<number>;
 	/**
 	 * Maps raw database result to an entity and merges it to this EntityManager.
 	 */
-	map(
+	public _map(
 		result: EntityDictionary<Entity>,
 		options?: {
 			schema?: string;
@@ -870,7 +815,7 @@ export default class MikroORMDbAdapter<
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	getReference<PK extends keyof Entity>(
+	public _getReference<PK extends keyof Entity>(
 		id: Primary<Entity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: true;
@@ -879,11 +824,11 @@ export default class MikroORMDbAdapter<
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
+	public _getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	getReference(
+	public _getReference(
 		id: Primary<Entity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: false;
@@ -892,11 +837,11 @@ export default class MikroORMDbAdapter<
 	/**
 	 * Checks whether given property can be populated on the entity.
 	 */
-	canPopulate(property: string): boolean;
+	public _canPopulate(property: string): boolean;
 	/**
 	 * Loads specified relations in batch. This will execute one query for each relation, that will populate it on all of the specified entities.
 	 */
-	populate<P extends string = never>(
+	public _populate<P extends string = never>(
 		entities: Entity | Entity[],
 		populate: AutoPath<Entity, P>[] | boolean,
 		options?: EntityLoaderOptions<Entity, P>,
@@ -909,34 +854,34 @@ export default class MikroORMDbAdapter<
 	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
 	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
+	public _create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
 	/**
 	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
-	assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
+	public _assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
 	/**
 	 * Merges given entity to this EntityManager so it becomes managed. You can force refreshing of existing entities
 	 * via second parameter. By default it will return already loaded entities without modifying them.
 	 */
-	merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
+	public _merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
 	/**
 	 * Returns total number of entities matching your `where` query.
 	 */
-	count<P extends string = never>(
+	public _count<P extends string = never>(
 		where?: FilterQuery<Entity>,
 		options?: CountOptions<Entity, P>,
 	): Promise<number>;
 	/**
-	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
+	 * Returns the underlying EntityManager instance
 	 */
-	get em(): EntityManager;
+	public getEntityManager(): EntityManager;
 	/**
 	 * Returns the underlying EntityManager instance
 	 */
-	getEntityManager(): EntityManager;
-	validateRepositoryType(entities: Entity[] | Entity, method: string): void;
-	//#endregion MikroORM entityrepostory methods
-	//#region Moleculer-db methods
+	public _getEntityManager(): EntityManager;
+	public _validateRepositoryType(entities: Entity[] | Entity, method: string): void;
+	// #endregion MikroORM entityrepostory methods
+	// #region Moleculer-db methods
 	/** Moleculer-db methods */
 	/**
 	 * Convert DB entity to JSON object
@@ -947,7 +892,15 @@ export default class MikroORMDbAdapter<
 	 * @returns {Object}
 	 *
 	 */
-	entityToObject(entity: any): object;
+	public entityToObject(entity: any): object;
+	/**
+	 * Convert DB entity to JSON object
+	 *
+	 * @param {any} entity
+	 * @returns {Object}
+	 * @memberof MemoryDbAdapter
+	 */
+	public entityToObject(entity: any): any;
 	/**
 	 * Transforms user defined idField into expected db id field.
 	 *
@@ -959,7 +912,15 @@ export default class MikroORMDbAdapter<
 	 * @returns {Object} Modified entity
 	 *
 	 */
-	beforeSaveTransformID(entity: Record<string, any>, idField: string): object;
+	public beforeSaveTransformID(entity: Record<string, any>, idField: string): object;
+	/**
+	 * Transforms 'idField' into NeDB's '_id'
+	 * @param {Object} entity
+	 * @param {String} idField
+	 * @memberof MemoryDbAdapter
+	 * @returns {Object} Modified entity
+	 */
+	public beforeSaveTransformID(entity: any, idField: string): any;
 	/**
 	 * Transforms db field into user defined idField service property
 	 *
@@ -970,8 +931,8 @@ export default class MikroORMDbAdapter<
 	 * @returns {Object} Modified entity
 	 *
 	 */
-	// afterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
-	/** additional custom methods */
+	// AfterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
+	/** Additional custom methods */
 	/**
 	 * Transform user defined idField service property into the expected id field of db.
 	 * @methods
@@ -979,7 +940,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {any}
 	 * @memberof MikroORMDbAdapter
 	 */
-	beforeQueryTransformID(idField: any): any;
+	public beforeQueryTransformID(idField: any): any;
 	/**
 	 * Count number of matching documents in the db to a query.
 	 *
@@ -989,7 +950,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<number>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	count<T extends Entity>(options?: any, query?: any): Promise<number>;
+	// public count(options?: any, query?: any): Promise<number>;
 	/**
 	 * Finds entities that match given find options.
 	 *
@@ -999,7 +960,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<[T | number]>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	find<T extends Entity>(ctx: Context, findManyOptions?: any): Promise<[T[], number]>;
+	// public find<T extends Entity>(ctx: Context, findManyOptions?: any): Promise<[T[], number]>;
 	/**
 	 * Finds first item by a given find options.
 	 * If entity was not found in the database - returns null.
@@ -1024,7 +985,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<T | undefined>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	findOne<T extends Entity>(ctx: Context, findOptions?: any): Promise<T | undefined>;
+	// public findOne<T extends Entity>(ctx: Context, findOptions?: any): Promise<T | undefined>;
 	/**
 	 * Gets item by id. Can use find options
 	 *
@@ -1036,7 +997,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<T | undefined>}
 	 *
 	 */
-	findByIdWO<T extends Entity>(
+	public findByIdWO<T extends Entity>(
 		ctx: Context,
 		key: string | undefined | null,
 		id: string | number | string[] | number[],
@@ -1053,7 +1014,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<T | undefined>}
 	 *
 	 */
-	findById<T extends Entity>(
+	public findById<T extends Entity>(
 		ctx: Context,
 		key: string | undefined | null,
 		id: string | number | string[] | number[],
@@ -1070,7 +1031,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @throws {EntityNotFoundError} - 404 Entity not found
 	 */
-	getPopulations(ctx: Context, params?: any): Object | Array<Object>;
+	public getPopulations(ctx: Context, params?: any): object | object[];
 	/**
 	 * Gets items by id.
 	 *
@@ -1082,7 +1043,7 @@ export default class MikroORMDbAdapter<
 	 * @deprecated - use findById instead. It now supports multiple ids
 	 *
 	 */
-	findByIds<T extends Entity>(
+	public findByIds<T extends Entity>(
 		ctx: Context,
 		key: string | undefined | null,
 		ids: any[],
@@ -1098,7 +1059,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @returns {Object} List of found entities and count.
 	 */
-	list(ctx: any, params: ListParams): Promise<any>;
+	public list(ctx: any, params: ListParams): Promise<any>;
 
 	/**
 	 * Transforms NeDB's '_id' into user defined 'idField'
@@ -1107,7 +1068,7 @@ export default class MikroORMDbAdapter<
 	 * @memberof MemoryDbAdapter
 	 * @returns {Object} Modified entity
 	 */
-	// afterRetrieveTransformID(entity: any, idField: string): any;
+	// AfterRetrieveTransformID(entity: any, idField: string): any;
 
 	/**
 	 * Encode ID of entity.
@@ -1116,7 +1077,7 @@ export default class MikroORMDbAdapter<
 	 * @param {any} id
 	 * @returns {any}
 	 */
-	encodeID(id: any): any;
+	public encodeID(id: any): any;
 
 	/**
 	 * Decode ID of entity.
@@ -1125,7 +1086,7 @@ export default class MikroORMDbAdapter<
 	 * @param {any} id
 	 * @returns {any}
 	 */
-	decodeID(id: any): any;
+	public decodeID(id: any): any;
 
 	/**
 	 * Convert id to mongodb ObjectId.
@@ -1134,7 +1095,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {any}
 	 * @memberof MikroORMDbAdapter
 	 */
-	// toMongoObjectId(id: any): ObjectId;
+	// ToMongoObjectId(id: any): ObjectId;
 
 	/**
 	 * Convert mongodb ObjectId to string.
@@ -1143,7 +1104,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {any}
 	 * @memberof MikroORMDbAdapter
 	 */
-	fromMongoObjectId(id: any): string;
+	public fromMongoObjectId(id: any): string;
 
 	/**
 	 * Transform the fetched documents
@@ -1153,7 +1114,7 @@ export default class MikroORMDbAdapter<
 	 * @param {Array|Object} docs
 	 * @returns {Array|Object}
 	 */
-	transformDocuments(ctx: any, params: any, docs: any): any;
+	public transformDocuments(ctx: any, params: any, docs: any): any;
 
 	/**
 	 * Call before entity lifecycle events
@@ -1164,7 +1125,7 @@ export default class MikroORMDbAdapter<
 	 * @param {Context} ctx
 	 * @returns {Promise}
 	 */
-	beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any>;
+	public beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any>;
 
 	/**
 	 * Clear the cache & call entity lifecycle events
@@ -1175,14 +1136,14 @@ export default class MikroORMDbAdapter<
 	 * @param {Context} ctx
 	 * @returns {Promise}
 	 */
-	entityChanged(type: string | undefined, json: any, ctx: any): Promise<any>;
+	public entityChanged(type: string | undefined, json: any, ctx: any): Promise<any>;
 	/**
 	 * Clear cached entities
 	 *
 	 * @methods
 	 * @returns {Promise}
 	 */
-	clearCache(): Promise<any>;
+	public clearCache(): Promise<any>;
 	/**
 	 * Filter fields in the entity object
 	 *
@@ -1190,7 +1151,7 @@ export default class MikroORMDbAdapter<
 	 * @param {Array<String>} 	fields	Filter properties of model.
 	 * @returns	{Object}
 	 */
-	filterFields(doc: any, fields: any[]): any;
+	public filterFields(doc: any, fields: any[]): any;
 	/**
 	 * Exclude fields in the entity object
 	 *
@@ -1198,12 +1159,12 @@ export default class MikroORMDbAdapter<
 	 * @param {Array<String>} 	fields	Exclude properties of model.
 	 * @returns	{Object}
 	 */
-	excludeFields(doc: any, fields: string | any[]): any;
+	public excludeFields(doc: any, fields: string | any[]): any;
 
 	/**
 	 * Exclude fields in the entity object. Internal use only, must ensure `fields` is an Array
 	 */
-	_excludeFields(doc: any, fields: any[]): any;
+	public _excludeFields(doc: any, fields: any[]): any;
 
 	/**
 	 * Populate documents.
@@ -1213,39 +1174,21 @@ export default class MikroORMDbAdapter<
 	 * @param {Array?}			populateFields
 	 * @returns	{Promise}
 	 */
-	populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any>;
+	public populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any>;
 	/**
 	 * Validate an entity by validator.
 	 * @methods
 	 * @param {Object} entity
 	 * @returns {Promise}
 	 */
-	validateEntity(entity: any): Promise<any>;
-
-	/**
-	 * Convert DB entity to JSON object
-	 *
-	 * @param {any} entity
-	 * @returns {Object}
-	 * @memberof MemoryDbAdapter
-	 */
-	entityToObject(entity: any): any;
-
-	/**
-	 * Transforms 'idField' into NeDB's '_id'
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @memberof MemoryDbAdapter
-	 * @returns {Object} Modified entity
-	 */
-	beforeSaveTransformID(entity: any, idField: string): any;
+	public validateEntity(entity: any): Promise<any>;
 	/**
 	 * Authorize the required field list. Remove fields which is not exist in the `this.settings.fields`
 	 *
 	 * @param {Array} askedFields
 	 * @returns {Array}
 	 */
-	authorizeFields(askedFields: any[]): any[];
+	public authorizeFields(askedFields: any[]): any[];
 	/**
 	 * Sanitize context parameters at `find` action.
 	 *
@@ -1256,7 +1199,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Object} - Sanitized parameters
 	 * @memberof MikroORMDbAdapter
 	 */
-	sanitizeParams(ctx: any, params: any): any;
+	public sanitizeParams(ctx: any, params: any): any;
 	/**
 	 * Update an entity by ID
 	 * @param {Context} ctx - Request context
@@ -1265,8 +1208,8 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise}
 	 * @memberof MemoryDbAdapter
 	 */
-	updateById(ctx: Context, id: any, update: any): Promise<any>;
-	//#endregion Moleculer-db methods
+	public updateById(ctx: Context, id: any, update: any): Promise<any>;
+	// #endregion Moleculer-db methods
 }
 
-export function TAdapterServiceSchemaMixin(mixinOptions?: any): ServiceSchema;
+export function MikroORMServiceSchemaMixin(mixinOptions?: any): ServiceSchema;

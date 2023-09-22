@@ -1,1 +1,1 @@
-declare module 'TAdapterServiceSchemaMixin';
+declare module 'MikroORMServiceSchemaMixin';

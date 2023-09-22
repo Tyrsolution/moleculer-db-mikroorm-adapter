@@ -7,7 +7,6 @@ module.exports = {
 		node: true,
 		jquery: false,
 		jest: true,
-		circus: true,
 	},
 	ignorePatterns: ['test/*'],
 	parser: '@typescript-eslint/parser',
@@ -20,6 +19,7 @@ module.exports = {
 		sourceType: 'module',
 		ecmaVersion: '2018',
 		project: 'tsconfig.json',
+		tsconfigRootDir: __dirname,
 	},
 	plugins: ['prefer-arrow', 'import', '@typescript-eslint'],
 	rules: {

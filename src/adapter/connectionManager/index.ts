@@ -1,3 +1,5 @@
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable capitalized-comments */
 /*
  * moleculer-db-mikroorm-adapter
  * Copyright (c) 2023 TyrSolutions (https://github.com/Tyrsolution/moleculer-db-mikroorm-adapter)
@@ -11,9 +13,9 @@ import { isArray } from 'lodash';
 	AlreadyHasActiveConnectionError,
 } from 'typeorm'; */
 import { Errors } from 'moleculer';
-import MikroORMDbAdapter from '../../adapter';
 import { resolve } from 'bluebird';
 import { MikroORM, MikroORMOptions } from '@mikro-orm/core';
+import MikroORMDbAdapter from '../../adapter';
 
 /**
  * ConnectionManager is used to store and manage multiple orm connections.
@@ -26,6 +28,10 @@ import { MikroORM, MikroORMOptions } from '@mikro-orm/core';
  */
 export default class ConnectionManager {
 	/**
+	 * Internal lookup to quickly get from a connection name to the Connection object.
+	 */
+	private readonly _connectionMap: Map<string, MikroORM> = new Map();
+	/**
 	 * List of connections registered in this connection manager.
 	 *
 	 * @public
@@ -33,14 +39,9 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	get connections(): MikroORM[] {
-		return Array.from(this.connectionMap.values());
+	public get connections(): MikroORM[] {
+		return Array.from(this._connectionMap.values());
 	}
-
-	/**
-	 * Internal lookup to quickly get from a connection name to the Connection object.
-	 */
-	private readonly connectionMap: Map<string, MikroORM> = new Map();
 
 	// -------------------------------------------------------------------------
 	// Public Methods
@@ -55,8 +56,8 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	has(name: string): boolean {
-		return this.connectionMap.has(name);
+	public has(name: string): boolean {
+		return this._connectionMap.has(name);
 	}
 
 	/**
@@ -70,9 +71,11 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	get(name: string = 'default'): MikroORM {
-		const connection = this.connectionMap.get(name);
-		if (!connection) throw new Error(`Connection ${name} not found`);
+	public get(name: string = 'default'): MikroORM {
+		const connection = this._connectionMap.get(name);
+		if (!connection) {
+			throw new Error(`Connection ${name} not found`);
+		}
 
 		return connection;
 	}
@@ -87,10 +90,12 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	remove(name: string = 'default'): void {
-		const connection = this.connectionMap.get(name);
-		if (!connection) throw new Error(`Connection ${name} not found`);
-		this.connectionMap.delete(name);
+	public remove(name: string = 'default'): void {
+		const connection = this._connectionMap.get(name);
+		if (!connection) {
+			throw new Error(`Connection ${name} not found`);
+		}
+		this._connectionMap.delete(name);
 	}
 
 	/**
@@ -104,35 +109,27 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	async close(name: string | Array<string> = 'default'): Promise<boolean | Promise<boolean>[]> {
-		const throwError = (name: string) => {
-			throw new Error(`Connection ${name} not found`);
+	public async close(name: string | string[] = 'default'): Promise<boolean | Promise<boolean>[]> {
+		const throwError = (connectionName: string) => {
+			throw new Error(`Connection ${connectionName} not found`);
 		};
-		const closeConnection = async (name: string) => {
-			const connection: MikroORM = this.connectionMap.get(name)!;
+		const closeConnection = async (connectionName: string) => {
+			const connection: MikroORM = this._connectionMap.get(connectionName)!;
 			await connection.close();
-			this.remove(name);
+			this.remove(connectionName);
 		};
-		return !isArray(name) && this.connectionMap.has(name)
+		return !isArray(name) && this._connectionMap.has(name)
 			? await closeConnection(name)
-					.then(() => {
-						return true;
-					})
-					.catch(() => {
-						return false;
-					})
+					.then(() => true)
+					.catch(() => false)
 			: isArray(name)
-			? name.map(async (connectionName: string) => {
-					return this.connectionMap.has(connectionName)
+			? name.map(async (connectionName: string) =>
+					this._connectionMap.has(connectionName)
 						? await closeConnection(connectionName)
-								.then(() => {
-									return true;
-								})
-								.catch(() => {
-									return false;
-								})
-						: throwError(connectionName);
-			  })
+								.then(() => true)
+								.catch(() => false)
+						: throwError(connectionName),
+			  )
 			: throwError(name);
 	}
 
@@ -147,9 +144,9 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	async create(options: MikroORMOptions, newConnection: boolean = false): Promise<any> {
+	public async create(options: MikroORMOptions, newConnection: boolean = false): Promise<any> {
 		// check if such connection is already registered
-		const existConnection = this.connectionMap.get(options.name ?? 'default');
+		const existConnection = this._connectionMap.get(options.name ?? 'default');
 		const throwError = () => {
 			const error = new Error(`Connection already exists for: ${options.name ?? 'default'}`);
 			throw new Errors.MoleculerServerError(
@@ -188,7 +185,7 @@ export default class ConnectionManager {
 			activeConneciton.name = options.name ?? 'default';
 
 			// create a new connection
-			this.connectionMap.set(activeConneciton.name, activeConneciton);
+			this._connectionMap.set(activeConneciton.name, activeConneciton);
 		}
 		return resolve(activeConneciton);
 	}
