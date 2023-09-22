@@ -403,12 +403,12 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 						...methodsToAdd,
 						insert: this.insert,
 						// updateById: this.updateById,
-						// removeById: this.removeById,
+						removeById: this.removeById,
 						count: this.count,
 						find: this.find,
 						findOne: this.findOne,
 						// findByIdWO: this.findByIdWO,
-						// findById: this.findById,
+						findById: this.findById,
 						getPopulations: this.getPopulations,
 						list: this.list,
 						beforeSaveTransformID: this.beforeSaveTransformID,
@@ -711,10 +711,10 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 */
 	public async removeById(id: any) {
 		const transformId: any = this.beforeQueryTransformID(id);
-		return await this['_removeAndFlush']({ [transformId]: id }).catch((error: any) => {
-			this.logger!.error(`Failed to updateById ${error}`);
+		return await this['_nativeDelete']({ [transformId]: id }).catch((error: any) => {
+			this.logger!.error(`Failed to removeById ${error}`);
 			return new Errors.MoleculerServerError(
-				`Failed to updateById ${error}`,
+				`Failed to removeById ${error}`,
 				500,
 				'FAILED_TO_UPDATE_BY_ID',
 				error,
