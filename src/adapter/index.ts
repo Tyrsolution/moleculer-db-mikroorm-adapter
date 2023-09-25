@@ -672,27 +672,20 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @returns {Promise} - Updated record
 	 * @memberof MikroORMDbAdapter
 	 */
-	/* public async updateById(ctx: Context, id: any, update: any): Promise<any> {
+	public async updateById(ctx: Context, id: any, update: any): Promise<any> {
 		const params = this.sanitizeParams(ctx, update);
 		this.logger!.debug(`Updating entity by ID '${id}' with ${JSON.stringify(params)}`);
-		const updatedColumn: any =
-			this.repository!.metadata.ownColumns[0].entityMetadata.updateDateColumn;
-		if (!isUndefined(updatedColumn) && this.opts.type === 'mongodb') {
-			params[updatedColumn!.propertyName] = new Date();
-		}
-		const entity = await this['_update'](
-			this.opts.type !== 'mongodb' ? id : this.toMongoObjectId(id),
-			params,
-		)
+		const transformId: any = this.beforeQueryTransformID(id);
+		const entity = await this['_nativeUpdate']({ [transformId]: id }, params)
 			.then(async (docs: any) => {
 				this.logger!.debug(`Updated entity by ID '${id}': ${docs}`);
-				const entity = await this.findById(ctx, null, id);
+				const updatedEntity = await this.findById(ctx, id);
 				this.logger!.debug('Transforming update docs...');
-				return this.transformDocuments(ctx, params, entity);
+				return this.transformDocuments(ctx, params, updatedEntity);
 			})
 			.catch((error: any) => {
 				this.logger!.error(`Failed to updateById ${error}`);
-				new Errors.MoleculerServerError(
+				return new Errors.MoleculerServerError(
 					`Failed to updateById ${error}`,
 					500,
 					'FAILED_TO_UPDATE_BY_ID',
@@ -700,7 +693,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				);
 			});
 		return this.afterRetrieveTransformID(entity, this.service.settings.idField);
-	} */
+	}
 
 	/**
 	 * Remove an entity by ID
