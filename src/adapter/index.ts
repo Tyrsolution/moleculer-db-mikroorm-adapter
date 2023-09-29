@@ -18,6 +18,7 @@ import {
 	defaultsDeep,
 	find,
 	flattenDeep,
+	forEach,
 	get,
 	has,
 	isArray,
@@ -41,13 +42,24 @@ import moleculer, {
 } from 'moleculer';
 import {
 	AnyEntity,
+	CountOptions,
+	CreateOptions,
+	DeleteOptions,
+	EntityData,
 	EntityManager,
 	EntityRepository,
 	EntitySchema,
+	FilterQuery,
+	FindOneOptions,
+	FindOptions,
+	Loaded,
 	MikroORM,
 	MikroORMOptions,
+	NativeInsertUpdateOptions,
+	RequiredEntityData,
+	UpdateOptions,
 } from '@mikro-orm/core';
-import flatten from 'flat';
+import { flatten } from 'flat';
 import { ObjectId } from '@mikro-orm/mongodb';
 import { ListParams } from '../types/mikroormadapter';
 import { name, version, repository } from '../../package.json';
@@ -79,6 +91,7 @@ import ConnectionManager from './connectionManager';
  * ```
  */
 export default class MikroORMDbAdapter<Entity extends AnyEntity> {
+	// #region Properties, constructor, init, connect, disconnect
 	// Dynamic property key
 	[index: string]: any;
 	/**
@@ -323,10 +336,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				if (repositoryEntityManager[entityManagerMethod]) {
 					logger.debug(`Adding entity manager method to adapter: ${entityManagerMethod}`);
 					index === 0
-						? /* ? (this[entityManagerMethod] = repositoryEntityManager[entityManagerMethod])
-						: (methodsToAdd[entityManagerMethod] =
-								repositoryEntityManager[entityManagerMethod]); */
-						  (this[`_${entityManagerMethod}`] =
+						? (this[`_${entityManagerMethod}`] =
 								repositoryEntityManager[entityManagerMethod])
 						: (methodsToAdd[`_${entityManagerMethod}`] =
 								repositoryEntityManager[entityManagerMethod]);
@@ -501,7 +511,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		});
 		return resolve();
 	}
-
+	// #endregion Properties, constructor, init, connect, disconnect
+	// #region Adapter custom methods
 	// -------------------------------------------------------------------------
 	// Public Methods
 	// -------------------------------------------------------------------------
@@ -516,42 +527,53 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async create<T extends Entity>(
-		ctx: Context,
-		entityOrEntities: T | T[],
-		options?: any,
+		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
+		options: CreateOptions,
 	): Promise<any> {
 		this.logger!.debug(
 			`Attempting to create entit(y/ies): ${JSON.stringify(entityOrEntities)}`,
 		);
 		return isArray(entityOrEntities)
-			? await resolve(
-					entityOrEntities.map((entity: any) => this['_create'](entity, options)),
-			  ).then(
-					async (docs: any) =>
-						await this['_upsertMany'](docs, options)
-							.then(async (docArray: any) => {
-								this.logger!.debug('Transforming created entity...');
-								return await this.transformDocuments(ctx, ctx.params, docArray);
-							})
-							.catch((err: any) => {
-								this.logger!.error(`Failed to create entity: ${err}`);
+			? await resolve(entityOrEntities.map((entity: any) => this['_create'](entity, options)))
+					.then(async (docs: T[]) => {
+						console.log('docs: ', docs);
+						const docsArray: T[] = [];
+						// const errors: any[] = [];
+						this.logger!.debug('Attempting to Persist created entity and flush');
+						forEach(docs, async (doc: T) => {
+							console.log('doc to persist: ', doc);
+							try {
+								// await this['_em'].fork().persist(doc).flush();
+								await this['manager']!.fork().persist(doc).flush();
+								// await this['_persistAndFlush'](doc);
+								docsArray.push(doc);
+							} catch (error) {
+								this.logger!.error(`Failed to create entity: ${error}`);
+								// errors.push(error);
 								return new Errors.MoleculerServerError(
 									`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
 									500,
 									'FAILED_TO_CREATE_ENTITY',
-									err,
+									error,
 								);
-							}),
-			  )
+							}
+						});
+						return docsArray;
+					})
+					.catch((err: any) => {
+						this.logger!.error(`Failed to create entity: ${err}`);
+						return new Errors.MoleculerServerError(
+							`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
+							500,
+							'FAILED_TO_CREATE_ENTITY',
+							err,
+						);
+					})
 			: await resolve(this['_create'](entityOrEntities, options))
 					.then(async (doc: any) => {
 						this.logger!.debug('Persiting created entity and flushing');
 						await this['_persistAndFlush'](doc);
 						return doc;
-					})
-					.then(async (doc: any) => {
-						this.logger!.debug('Transforming created entity and returning it...');
-						return await this.transformDocuments(ctx, ctx.params, doc);
 					})
 					.catch((err: any) => {
 						this.logger!.error(`Failed to create entity: ${err}`);
@@ -571,11 +593,15 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 *
 	 * @param {Context} ctx - Context instance.
 	 * @param {Object?} entityOrEntities - entity or entities to create.
-	 * @param {Object?} options - Create options.
+	 * @param {Object?} options - Insert options.
 	 *
 	 * @returns {Object|Object[]} Saved entity(ies).
 	 */
-	public insert(ctx: Context, entityOrEntities: any, options?: any): object | object[] {
+	public insert<T extends Entity>(
+		ctx: Context,
+		entityOrEntities: RequiredEntityData<T> | EntityData<T> | EntityData<T>[],
+		options?: CreateOptions | NativeInsertUpdateOptions<T>,
+	): object | object[] {
 		return resolve()
 			.then(async () => {
 				if (isArray(entityOrEntities)) {
@@ -669,14 +695,20 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {Context} ctx - request context
 	 * @param {any} id - ID of record to be updated
 	 * @param {Object} update - Object with update data
+	 * @param {Object} options - Object with update options
 	 * @returns {Promise} - Updated record
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async updateById(ctx: Context, id: any, update: any): Promise<any> {
+	public async updateById<T extends Entity>(
+		ctx: Context,
+		id: any,
+		update: EntityData<T>,
+		options?: UpdateOptions<T>,
+	): Promise<any> {
 		const params = this.sanitizeParams(ctx, update);
 		this.logger!.debug(`Updating entity by ID '${id}' with ${JSON.stringify(params)}`);
 		const transformId: any = this.beforeQueryTransformID(id);
-		const entity = await this['_nativeUpdate']({ [transformId]: id }, params)
+		const entity = await this['_nativeUpdate']({ [transformId]: id }, params, options)
 			.then(async (docs: any) => {
 				this.logger!.debug(`Updated entity by ID '${id}': ${docs}`);
 				const updatedEntity = await this.findById(ctx, id);
@@ -699,12 +731,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Remove an entity by ID
 	 *
 	 * @param {any} id
+	 * @param {DeleteOptions<T>} options
 	 * @returns {Promise}
 	 * @memberof MemoryDbAdapter
 	 */
-	public async removeById(id: any) {
+	public async removeById<T extends Entity>(id: any, options?: DeleteOptions<T>): Promise<any> {
 		const transformId: any = this.beforeQueryTransformID(id);
-		return await this['_nativeDelete']({ [transformId]: id }).catch((error: any) => {
+		return await this['_nativeDelete']({ [transformId]: id }, options).catch((error: any) => {
 			this.logger!.error(`Failed to removeById ${error}`);
 			return new Errors.MoleculerServerError(
 				`Failed to removeById ${error}`,
@@ -724,24 +757,64 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @returns {Promise<number>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async count(where?: any, options?: any): Promise<number> {
+	public async count<T extends Entity, P extends string>(
+		where?: FilterQuery<T>,
+		options?: CountOptions<T, P>,
+	): Promise<number> {
 		return this['_count'](where, options);
 	}
 
 	/**
-	 * Finds entities that match given find options.
+	 * Finds all entities matching your FilterQuery and FindOptions.
+	 * Returns array of entities or single entity depending on your query.
 	 *
 	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Object} findManyOptions - find many options
-	 * @returns {Promise<T[] | number[]>}
+	 * @param {Context<{where, options?}>} ctx - request context
+	 * @returns {Promise<Loaded<T, P>|Loaded<T, P>[]}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async find<T extends Entity>(ctx: Context): Promise<[T[], number]> {
+	public async find<T extends Entity, P extends string>(
+		// ctx: Context<{ where: FilterQuery<T>; options?: FindOptions<T, P> }>,
+		where: FilterQuery<T>,
+		options?: FindOptions<T, P>,
+	): Promise<Loaded<T, P> | Loaded<T, P>[]> {
 		// const params = this.sanitizeParams(ctx, ctx.params);
-		const params = ctx.params;
-		return await this['_find'](params)
-			.then(async (docs: any) => {
+		// const { where, options } = params;
+		// const params = ctx.params;
+		/* const response: Loaded<T, P>[] = params.where
+			? await this['_find'](params.where, params.options)
+					// return await this['_find'](where, options)
+					.then(async (docs: any) => {
+						this.logger!.debug('Transforming find docs...');
+						return await this.transformDocuments(ctx, params, docs);
+					})
+					.catch((error: any) => {
+						this.logger!.error(`Failed to find ${error}`);
+						return new moleculer.Errors.MoleculerServerError(
+							`Failed to find ${error}`,
+							500,
+							'FAILED_TO_FIND_ONE_BY_OPTIONS',
+							error,
+						);
+					})
+			: await this['_find'](params)
+					// return await this['_find'](where, options)
+					.then(async (docs: any) => {
+						this.logger!.debug('Transforming find docs...');
+						return await this.transformDocuments(ctx, params, docs);
+					})
+					.catch((error: any) => {
+						this.logger!.error(`Failed to find ${error}`);
+						return new moleculer.Errors.MoleculerServerError(
+							`Failed to find ${error}`,
+							500,
+							'FAILED_TO_FIND_ONE_BY_OPTIONS',
+							error,
+						);
+					});
+		return response.length > 1 ? response : response[0]; */
+		return await this['_find'](where, options);
+		/* .then(async (docs: any) => {
 				this.logger!.debug('Transforming find docs...');
 				return await this.transformDocuments(ctx, params, docs);
 			})
@@ -753,39 +826,24 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					'FAILED_TO_FIND_ONE_BY_OPTIONS',
 					error,
 				);
-			});
+			}); */
 	}
 
 	/**
-	 * Finds first item by a given find options.
+	 * Finds first item by a given FilterQuery and FindOneOptions.
 	 * If entity was not found in the database - returns null.
-	 * Available Options props:
-	 * - comment
-	 * - select
-	 * - where
-	 * - relations
-	 * - relationLoadStrategy
-	 * - join
-	 * - order
-	 * - cache
-	 * - lock
-	 * - withDeleted
-	 * - loadRelationIds
-	 * - loadEagerRelations
-	 * - transaction
 	 *
 	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Object} findOptions - find options
+	 * @param {Context<{where, options?}>} ctx - request context
 	 * @returns {Promise<T | undefined>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async findOne<T extends Entity>(
-		ctx: Context,
-		findOptions?: any,
-	): Promise<T | undefined> {
+	public async findOne<T extends Entity, P extends string>(
+		ctx: Context<{ where: FilterQuery<T>; options?: FindOneOptions<T, P> }>,
+		// findOptions?: any,
+	): Promise<null | Loaded<T, P>> {
 		const params = this.sanitizeParams(ctx, ctx.params);
-		const entity = await this['_findOne'](findOptions)
+		const entity = await this['_findOne'](params)
 			.then(async (docs: any) => {
 				this.logger!.debug('Transforming findOne docs...');
 				return await this.transformDocuments(ctx, params, docs);
@@ -802,7 +860,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		/* return this.afterRetrieveTransformID(entity, this.service.settings.idField) as
 			| T
 			| undefined; */
-		return entity as T | undefined;
+		return entity;
 	}
 
 	/**
@@ -1667,6 +1725,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			p.searchFields = p.searchFields.split(/[,\s]+/);
 		}
 
+		if (typeof p.where === 'string') {
+			p.where = JSON.parse(p.where);
+		}
+		if (typeof p.options === 'string') {
+			p.options = JSON.parse(p.options);
+		}
+
 		console.log('ctx.action.name', ctx.action.name);
 		if (ctx.action.name.endsWith('.list')) {
 			// Default `pageSize`
@@ -1709,12 +1774,14 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		});
 		return res;
 	}
+	// #endregion Adapter custom methods
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) => {
 	const mixin = defaultsDeep(
 		{
+			// #region Service settings
 			// Must overwrite it
 			name: '',
 
@@ -1768,7 +1835,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				/** @type {String} Type of cache clean event type. Values: "broadcast" or "emit" */
 				cacheCleanEventType: 'broadcast',
 			},
-
+			// #endregion Service settings
+			// #region Service Actions
 			/**
 			 * Actions
 			 */
@@ -2120,7 +2188,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					},
 				},
 			},
-
+			// #endregion Service Actions
+			// #region Service Methods
 			/**
 			 * Methods
 			 */
@@ -2340,20 +2409,86 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Find entities by query.
+				 * Find entities by params.
+				 * Params should be an object with entity property or an object with `where` query.
+				 * e.g. `{ id: '123456' }` or `{ where: [12345,123456]}` or
+				 * {where: {"$and":[{"id":{"$in":[12345,123456]}}]}}
+				 * Options property is optional.
 				 *
 				 * @methods
 				 *
 				 * @param {Context} ctx - Context instance.
 				 * @param {Object?} params - Parameters.
 				 *
-				 * @returns {Array<Object>} List of found entities.
+				 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>} List of found entities.
 				 */
-				_find(ctx: Context, params: any): object[] {
+				async _find<T extends object, P extends string>(
+					ctx: Context<
+						FilterQuery<T> | { where?: FilterQuery<T>; options?: FindOptions<T, P> }
+					>,
+				): Promise<Loaded<T, P> | Loaded<T, P>[]> {
 					// @ts-ignore
-					return this.adapter
-						.find(ctx, params)
-						.then((docs: any[]) => this.transformDocuments(ctx, params, docs));
+					this.logger.debug('Sanatizing paramaters...');
+					const params = this.sanitizeParams(ctx, ctx.params);
+
+					const wherePresent = async () =>
+						// @ts-ignore
+						await this.adapter
+							.find(params.where, params.options)
+							// return await this['_find'](where, options)
+							.then(async (docs: any) => {
+								// @ts-ignore
+								this.logger.debug('Transforming find docs...');
+								return await this.transformDocuments(ctx, params, docs);
+							})
+							.catch((error: any) => {
+								// @ts-ignore
+								this.logger!.error(`Failed to find ${error}`);
+								return new moleculer.Errors.MoleculerServerError(
+									`Failed to find ${error}`,
+									500,
+									'FAILED_TO_FIND_ONE_BY_OPTIONS',
+									error,
+								);
+							});
+
+					const optionPresent = async () => {
+						// @ts-ignore
+						this.logger.debug('Copying params object...');
+						const paramObj = { ...params };
+						// @ts-ignore
+						this.logger.debug('Checking object for options property...');
+						const options = paramObj.options ? paramObj.options : undefined;
+						if (paramObj.options) {
+							// @ts-ignore
+							this.logger.debug('Deleting where property...');
+							delete paramObj.options;
+						}
+						// @ts-ignore
+						return await this.adapter
+							.find(paramObj, options)
+							// return await this['_find'](where, options)
+							.then(async (docs: any) => {
+								// @ts-ignore
+								this.logger.debug('Transforming find docs...');
+								return await this.transformDocuments(ctx, paramObj, docs);
+							})
+							.catch((error: any) => {
+								// @ts-ignore
+								this.logger.error(`Failed to find ${error}`);
+								return new moleculer.Errors.MoleculerServerError(
+									`Failed to find ${error}`,
+									500,
+									'FAILED_TO_FIND_ONE_BY_OPTIONS',
+									error,
+								);
+							});
+					};
+					const response: Loaded<T, P>[] = params.where
+						? await wherePresent()
+						: await optionPresent();
+
+					return response.length > 1 ? response : response[0];
 				},
 
 				/**
@@ -2403,8 +2538,10 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @returns {Object} Saved entity.
 				 */
-				_create(ctx: Context, params: any): any {
-					const { entityOrEntities, options } = params;
+				_create<T extends object>(
+					ctx: Context<{ entityOrEntities: T | T[]; options?: CreateOptions }>,
+				): any {
+					const { entityOrEntities, options } = ctx.params;
 					return this.beforeEntityChange('create', entityOrEntities, ctx)
 						.then(async (entity: any) => {
 							// @ts-ignore
@@ -2415,12 +2552,12 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 							// @ts-ignore
 							this.logger.debug(`Attempting to create entity: ${entity}`);
 							// @ts-ignore
-							return await this.adapter.create(ctx, entity, options);
+							return await this.adapter.create(entity, options);
 						})
 						.then(async (doc: any) => {
 							// @ts-ignore
 							this.logger.debug('Transforming created entity...');
-							return await this.transformDocuments(ctx, params, doc);
+							return await this.transformDocuments(ctx, entityOrEntities, doc);
 						})
 						.then(
 							async (json: any) =>
@@ -2670,7 +2807,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					);
 				},
 			},
-
+			// #endregion Service Methods
+			// #region Service Lifecycle Events
 			/**
 			 * Service created lifecycle event handler
 			 */
@@ -2748,6 +2886,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					return this.adapter.disconnect();
 				}
 			},
+			// #endregion Service Lifecycle Events
 		},
 		mixinOptions,
 	);
