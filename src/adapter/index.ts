@@ -59,13 +59,17 @@ import {
 	RequiredEntityData,
 	UpdateOptions,
 } from '@mikro-orm/core';
-import { flatten } from 'flat';
+// import { flatten } from 'flat';
 import { ObjectId } from '@mikro-orm/mongodb';
 import { ListParams } from '../types/mikroormadapter';
 import { name, version, repository } from '../../package.json';
 import ConnectionManager from './connectionManager';
-
-/**
+import { FlattenOptions } from 'flat';
+const flatten = (target: unknown, options: FlattenOptions | undefined) =>
+	import('flat').then(async (flat) => await flat.flatten(target, options));
+/* .catch((err) => {
+			broker.logger.error(err);
+		}) */ /**
  * Moleculer Mikro-ORM Adapter
  *
  * @name moleculer-db-mikroorm-adapter
@@ -2581,7 +2585,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 								origDoc = doc;
 							}
 							// @ts-ignore
-							return doc;
+							return this.transformDocuments(ctx, params, doc);
 						})
 						.then((json: any) => {
 							if (params.mapping !== true) {
@@ -2662,6 +2666,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 							// @ts-ignore
 							return await this.adapter.updateById(id, entity);
 						})
+						.then(async (doc: any) => this.transformDocuments(ctx, params, doc))
 						.then((json: any) =>
 							// @ts-ignore
 							this.entityChanged('updated', json, ctx).then(() => json),
