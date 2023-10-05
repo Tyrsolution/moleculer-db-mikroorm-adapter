@@ -483,6 +483,372 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	_validateRepositoryType(entities: Entity[] | Entity, method: string): void;
 	// #endregion MikroORM entityrepostory methods
 	// #region Moleculer-db methods
+	/** Moleculer-db methods */
+	/**
+	 * Convert DB entity to JSON object
+	 *
+	 * @methods
+	 * @public
+	 * @param {any} entity
+	 * @returns {Object}
+	 *
+	 */
+	entityToObject(entity: any): object;
+	/**
+	 * Convert DB entity to JSON object
+	 *
+	 * @param {any} entity
+	 * @returns {Object}
+	 * @memberof MemoryDbAdapter
+	 */
+	entityToObject(entity: any): any;
+	/**
+	 * Transforms user defined idField into expected db id field.
+	 *
+	 * @methods
+	 * @public
+	 * @param {Object} entity
+	 * @param {String} idField
+	 *
+	 * @returns {Object} Modified entity
+	 *
+	 */
+	beforeSaveTransformID(entity: Record<string, any>, idField: string): object;
+	/**
+	 * Transforms 'idField' into NeDB's '_id'
+	 * @param {Object} entity
+	 * @param {String} idField
+	 * @memberof MemoryDbAdapter
+	 * @returns {Object} Modified entity
+	 */
+	beforeSaveTransformID(entity: any, idField: string): any;
+	/**
+	 * Transforms db field into user defined idField service property
+	 *
+	 * @methods
+	 * @public
+	 * @param {Object} entity
+	 * @param {String} idField
+	 * @returns {Object} Modified entity
+	 *
+	 */
+	AfterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
+	/** Additional custom methods */
+	/**
+	 * Transform user defined idField service property into the expected id field of db.
+	 * @methods
+	 * @param {any} idField
+	 * @returns {any}
+	 * @memberof MikroORMDbAdapter
+	 */
+	beforeQueryTransformID(idField: any): any;
+	/**
+	 * Count number of matching documents in the db to a query.
+	 *
+	 * @methods
+	 * @param {FilterQuery<T>} where - count options
+	 * @param {CountOptions<T, P>} options - query options
+	 * @returns {Promise<number>}
+	 * @memberof MikroORMDbAdapter
+	 */
+	count<T extends Entity, P extends string>(
+		where?: FilterQuery<T>,
+		options?: CountOptions<T, P>,
+	): Promise<number>;
+	/**
+	 * Create new record or records.
+	 * If record exists it is skipped, otherwise it is created.
+	 *
+	 * @methods
+	 * @param {Object | Object[]} entityOrEntities - record(s) to create
+	 * @param {Object?} options - Optional create options
+	 * @returns {Promise<Object | Object[]>>}
+	 * @memberof MikroORMDbAdapter
+	 */
+	create<T extends Entity>(
+		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
+		options?: CreateOptions,
+	): Promise<T | T[]>;
+	/**
+	 * Create one or many new entities.
+	 *
+	 * @methods
+	 *
+	 * @param {Object?} entityOrEntities - entity or entities to create.
+	 * @param {Object?} options - Insert options.
+	 *
+	 * @returns {Object|Object[]} Saved entity(ies).
+	 */
+	insert<T extends Entity>(
+		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
+		options?: CreateOptions,
+	): Promise<T | T[]>;
+	/**
+	 * Update an entity by ID
+	 * @methods
+	 * @param {Context} ctx - request context
+	 * @param {any} id - ID of record to be updated
+	 * @param {Object} update - Object with update data
+	 * @param {Object} options - Object with update options
+	 * @returns {Promise} - Updated record
+	 * @memberof MikroORMDbAdapter
+	 */
+	updateById<T extends Entity>(
+		id: any,
+		update: EntityData<T>,
+		options?: UpdateOptions<T>,
+	): Promise<any>;
+	/**
+	 * Remove an entity by ID
+	 *
+	 * @param {any} id
+	 * @param {DeleteOptions<T>} options
+	 * @returns {Promise<number>}
+	 * @memberof MemoryDbAdapter
+	 */
+	removeById<T extends Entity>(id: any, options?: DeleteOptions<T>): Promise<number>;
+	/**
+	 * Remove many entities by ID
+	 *
+	 * @param {any[]} id
+	 * @param {DeleteOptions<T>} options
+	 * @returns {Promise<number>}
+	 * @memberof MemoryDbAdapter
+	 */
+	removeMany<T extends Entity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
+	/**
+	 * Finds entities that match given find options.
+	 *
+	 * @methods
+	 * @param {FilterQuery<T>} where - request context
+	 * @param {FindOptions<T, P>} options - find many options
+	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>}
+	 * @memberof MikroORMDbAdapter
+	 */
+	find<T extends Entity, P extends string>(
+		where: FilterQuery<T>,
+		options?: FindOptions<T, P>,
+	): Promise<Loaded<T, P> | Loaded<T, P>[]>;
+	/**
+	 * Finds first item by a given find options.
+	 * If entity was not found in the database - returns null.
+	 * Available Options props:
+	 * - comment
+	 * - select
+	 * - where
+	 * - relations
+	 * - relationLoadStrategy
+	 * - join
+	 * - order
+	 * - cache
+	 * - lock
+	 * - withDeleted
+	 * - loadRelationIds
+	 * - loadEagerRelations
+	 * - transaction
+	 *
+	 * @methods
+	 * @param {FilterQuery<T>} where - request context
+	 * @param {FindOneOptions<T, P>} options - find options
+	 * @returns {Promise<null | Loaded<T, P>>}
+	 * @memberof MikroORMDbAdapter
+	 */
+	findOne<T extends Entity, P extends string>(
+		where: FilterQuery<T>,
+		options?: FindOneOptions<T, P>,
+	): Promise<null | Loaded<T, P>>;
+
+	/**
+	 * Gets item by id. No find options
+	 *
+	 * @methods
+	 * @param {string | number | string[] | number[]} id - id(s) of entity
+	 * @returns {Promise<T | undefined>}
+	 *
+	 */
+	findById<T extends Entity>(id: string | number | string[] | number[]): Promise<T | undefined>;
+	/**
+	 * Populates entity(ies) by id(s) of another record.
+	 *
+	 * @methods
+	 *
+	 * @param {Context} ctx - Context instance.
+	 * @param {Object?} params - Parameters.
+	 *
+	 * @returns {Object|Array<Object>} Found entity(ies).
+	 *
+	 * @throws {EntityNotFoundError} - 404 Entity not found
+	 */
+	getPopulations(ctx: Context, params?: any): object | object[];
+	/**
+	 * Gets items by id.
+	 *
+	 * @methods
+	 * @param {Context} ctx - Request context
+	 * @param {Partial<T>} key - primary db id column name
+	 * @param {Array<string> | Array<number>} ids - ids of entity
+	 * @returns {Promise<T | undefined>}
+	 * @deprecated - use findById instead. It now supports multiple ids
+	 *
+	 */
+	findByIds<T extends Entity>(
+		ctx: Context,
+		key: string | undefined | null,
+		ids: any[],
+	): Promise<T | undefined>;
+
+	/**
+	 * List entities by filters and pagination results.
+	 *
+	 * @methods
+	 *
+	 * @param {Context} ctx - Context instance.
+	 * @param {Object?} params - Parameters.
+	 *
+	 * @returns {Object} List of found entities and count.
+	 */
+	list(ctx: any, params: ListParams): Promise<any>;
+
+	/**
+	 * Transforms NeDB's '_id' into user defined 'idField'
+	 * @param {Object} entity
+	 * @param {String} idField
+	 * @memberof MemoryDbAdapter
+	 * @returns {Object} Modified entity
+	 */
+	// AfterRetrieveTransformID(entity: any, idField: string): any;
+
+	/**
+	 * Encode ID of entity.
+	 *
+	 * @methods
+	 * @param {any} id
+	 * @returns {any}
+	 */
+	encodeID(id: any): any;
+
+	/**
+	 * Decode ID of entity.
+	 *
+	 * @methods
+	 * @param {any} id
+	 * @returns {any}
+	 */
+	decodeID(id: any): any;
+
+	/**
+	 * Convert id to mongodb ObjectId.
+	 * @methods
+	 * @param {any} id
+	 * @returns {any}
+	 * @memberof MikroORMDbAdapter
+	 */
+	// ToMongoObjectId(id: any): ObjectId;
+
+	/**
+	 * Convert mongodb ObjectId to string.
+	 * @methods
+	 * @param {any} id
+	 * @returns {any}
+	 * @memberof MikroORMDbAdapter
+	 */
+	fromMongoObjectId(id: any): string;
+
+	/**
+	 * Transform the fetched documents
+	 * @methods
+	 * @param {Context} ctx
+	 * @param {Object} 	params
+	 * @param {Array|Object} docs
+	 * @returns {Array|Object}
+	 */
+	transformDocuments(ctx: any, params: any, docs: any): any;
+
+	/**
+	 * Call before entity lifecycle events
+	 *
+	 * @methods
+	 * @param {String} type
+	 * @param {Object} entity
+	 * @param {Context} ctx
+	 * @returns {Promise}
+	 */
+	beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any>;
+
+	/**
+	 * Clear the cache & call entity lifecycle events
+	 *
+	 * @methods
+	 * @param {String} type
+	 * @param {Object|Array<Object>|Number} json
+	 * @param {Context} ctx
+	 * @returns {Promise}
+	 */
+	entityChanged(type: string | undefined, json: any, ctx: any): Promise<any>;
+	/**
+	 * Clear cached entities
+	 *
+	 * @methods
+	 * @returns {Promise}
+	 */
+	clearCache(): Promise<any>;
+	/**
+	 * Filter fields in the entity object
+	 *
+	 * @param {Object} 	doc
+	 * @param {Array<String>} 	fields	Filter properties of model.
+	 * @returns	{Object}
+	 */
+	filterFields(doc: any, fields: any[]): any;
+	/**
+	 * Exclude fields in the entity object
+	 *
+	 * @param {Object} 	doc
+	 * @param {Array<String>} 	fields	Exclude properties of model.
+	 * @returns	{Object}
+	 */
+	excludeFields(doc: any, fields: string | any[]): any;
+
+	/**
+	 * Exclude fields in the entity object. Internal use only, must ensure `fields` is an Array
+	 */
+	_excludeFields(doc: any, fields: any[]): any;
+
+	/**
+	 * Populate documents.
+	 *
+	 * @param {Context} 		ctx
+	 * @param {Array|Object} 	docs
+	 * @param {Array?}			populateFields
+	 * @returns	{Promise}
+	 */
+	populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any>;
+	/**
+	 * Validate an entity by validator.
+	 * @methods
+	 * @param {Object} entity
+	 * @returns {Promise}
+	 */
+	validateEntity(entity: any): Promise<any>;
+	/**
+	 * Authorize the required field list. Remove fields which is not exist in the `this.settings.fields`
+	 *
+	 * @param {Array} askedFields
+	 * @returns {Array}
+	 */
+	authorizeFields(askedFields: any[]): any[];
+	/**
+	 * Sanitize context parameters at `find` action.
+	 *
+	 * @methods
+	 *
+	 * @param {Context} ctx - Request context
+	 * @param {Object} params - Request parameters
+	 * @returns {Object} - Sanitized parameters
+	 * @memberof MikroORMDbAdapter
+	 */
+	sanitizeParams(ctx: any, params: any): any;
+	// #endregion Moleculer-db methods
 }
 
 export default class MikroORMDbAdapter<
@@ -931,7 +1297,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Object} Modified entity
 	 *
 	 */
-	// AfterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
+	public AfterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
 	/** Additional custom methods */
 	/**
 	 * Transform user defined idField service property into the expected id field of db.
@@ -945,22 +1311,89 @@ export default class MikroORMDbAdapter<
 	 * Count number of matching documents in the db to a query.
 	 *
 	 * @methods
-	 * @param {Object} options - count options
-	 * @param {Object?} query - query options
+	 * @param {FilterQuery<T>} where - count options
+	 * @param {CountOptions<T, P>} options - query options
 	 * @returns {Promise<number>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	// public count(options?: any, query?: any): Promise<number>;
+	public count<T extends Entity, P extends string>(
+		where?: FilterQuery<T>,
+		options?: CountOptions<T, P>,
+	): Promise<number>;
+	/**
+	 * Create new record or records.
+	 * If record exists it is skipped, otherwise it is created.
+	 *
+	 * @methods
+	 * @param {Object | Object[]} entityOrEntities - record(s) to create
+	 * @param {Object?} options - Optional create options
+	 * @returns {Promise<Object | Object[]>>}
+	 * @memberof MikroORMDbAdapter
+	 */
+	public create<T extends Entity>(
+		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
+		options?: CreateOptions,
+	): Promise<T | T[]>;
+	/**
+	 * Create one or many new entities.
+	 *
+	 * @methods
+	 *
+	 * @param {Object?} entityOrEntities - entity or entities to create.
+	 * @param {Object?} options - Insert options.
+	 *
+	 * @returns {Object|Object[]} Saved entity(ies).
+	 */
+	public insert<T extends Entity>(
+		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
+		options?: CreateOptions,
+	): Promise<T | T[]>;
+	/**
+	 * Update an entity by ID
+	 * @methods
+	 * @param {Context} ctx - request context
+	 * @param {any} id - ID of record to be updated
+	 * @param {Object} update - Object with update data
+	 * @param {Object} options - Object with update options
+	 * @returns {Promise} - Updated record
+	 * @memberof MikroORMDbAdapter
+	 */
+	public updateById<T extends Entity>(
+		id: any,
+		update: EntityData<T>,
+		options?: UpdateOptions<T>,
+	): Promise<any>;
+	/**
+	 * Remove an entity by ID
+	 *
+	 * @param {any} id
+	 * @param {DeleteOptions<T>} options
+	 * @returns {Promise<number>}
+	 * @memberof MemoryDbAdapter
+	 */
+	public removeById<T extends Entity>(id: any, options?: DeleteOptions<T>): Promise<number>;
+	/**
+	 * Remove many entities by ID
+	 *
+	 * @param {any[]} id
+	 * @param {DeleteOptions<T>} options
+	 * @returns {Promise<number>}
+	 * @memberof MemoryDbAdapter
+	 */
+	public removeMany<T extends Entity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
 	/**
 	 * Finds entities that match given find options.
 	 *
 	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Object} findManyOptions - find many options
-	 * @returns {Promise<[T | number]>}
+	 * @param {FilterQuery<T>} where - request context
+	 * @param {FindOptions<T, P>} options - find many options
+	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	// public find<T extends Entity>(ctx: Context, findManyOptions?: any): Promise<[T[], number]>;
+	public find<T extends Entity, P extends string>(
+		where: FilterQuery<T>,
+		options?: FindOptions<T, P>,
+	): Promise<Loaded<T, P> | Loaded<T, P>[]>;
 	/**
 	 * Finds first item by a given find options.
 	 * If entity was not found in the database - returns null.
@@ -980,43 +1413,25 @@ export default class MikroORMDbAdapter<
 	 * - transaction
 	 *
 	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Object} findOptions - find options
-	 * @returns {Promise<T | undefined>}
+	 * @param {FilterQuery<T>} where - request context
+	 * @param {FindOneOptions<T, P>} options - find options
+	 * @returns {Promise<null | Loaded<T, P>>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	// public findOne<T extends Entity>(ctx: Context, findOptions?: any): Promise<T | undefined>;
-	/**
-	 * Gets item by id. Can use find options
-	 *
-	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {string | number | string[] | number[]} id - id(d) of entity
-	 * @param {Object} findOptions - find options, like relations, order, etc. No where clause
-	 * @returns {Promise<T | undefined>}
-	 *
-	 */
-	public findByIdWO<T extends Entity>(
-		ctx: Context,
-		key: string | undefined | null,
-		id: string | number | string[] | number[],
-		findOptions?: any | any,
-	): Promise<T | undefined>;
+	public findOne<T extends Entity, P extends string>(
+		where: FilterQuery<T>,
+		options?: FindOneOptions<T, P>,
+	): Promise<null | Loaded<T, P>>;
 
 	/**
 	 * Gets item by id. No find options
 	 *
 	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
 	 * @param {string | number | string[] | number[]} id - id(s) of entity
 	 * @returns {Promise<T | undefined>}
 	 *
 	 */
 	public findById<T extends Entity>(
-		ctx: Context,
-		key: string | undefined | null,
 		id: string | number | string[] | number[],
 	): Promise<T | undefined>;
 	/**
@@ -1200,15 +1615,6 @@ export default class MikroORMDbAdapter<
 	 * @memberof MikroORMDbAdapter
 	 */
 	public sanitizeParams(ctx: any, params: any): any;
-	/**
-	 * Update an entity by ID
-	 * @param {Context} ctx - Request context
-	 * @param {any} id
-	 * @param {Object} update
-	 * @returns {Promise}
-	 * @memberof MemoryDbAdapter
-	 */
-	public updateById(ctx: Context, id: any, update: any): Promise<any>;
 	// #endregion Moleculer-db methods
 }
 

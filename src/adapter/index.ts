@@ -412,7 +412,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				  (this[entityName] = {
 						...methodsToAdd,
 						insert: this.insert,
-						// updateById: this.updateById,
+						updateById: this.updateById,
 						removeById: this.removeById,
 						count: this.count,
 						find: this.find,
@@ -519,6 +519,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Create new record or records.
+	 * If record exists it is skipped, otherwise it is created.
 	 *
 	 * @methods
 	 * @param {Object | Object[]} entityOrEntities - record(s) to create
@@ -528,8 +529,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 */
 	public async create<T extends Entity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
-		options: CreateOptions,
-	): Promise<any> {
+		options?: CreateOptions,
+	): Promise<T | T[]> {
 		this.logger!.debug(
 			`Attempting to create entit(y/ies): ${JSON.stringify(entityOrEntities)}`,
 		);
@@ -587,106 +588,20 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Create many new entities.
+	 * Create one or many new entities.
 	 *
 	 * @methods
 	 *
-	 * @param {Context} ctx - Context instance.
 	 * @param {Object?} entityOrEntities - entity or entities to create.
 	 * @param {Object?} options - Insert options.
 	 *
 	 * @returns {Object|Object[]} Saved entity(ies).
 	 */
-	public insert<T extends Entity>(
-		ctx: Context,
-		entityOrEntities: RequiredEntityData<T> | EntityData<T> | EntityData<T>[],
-		options?: CreateOptions | NativeInsertUpdateOptions<T>,
-	): object | object[] {
-		return resolve()
-			.then(async () => {
-				if (isArray(entityOrEntities)) {
-					return (
-						all(
-							entityOrEntities.map(
-								async (entity: any) =>
-									await this.beforeEntityChange('create', entity, ctx),
-							),
-						)
-							.then(async (entities) => {
-								this.logger!.debug(`Validating entities to create: ${entities}`);
-								return this.validateEntity(entities);
-							})
-							.then((entities) =>
-								all(
-									entities.map(async (entity: any) =>
-										this.beforeEntityChange('create', entity, ctx),
-									),
-								),
-							)
-							// Apply idField
-							.then((entities) => {
-								if (this.service.settings.idField === '_id') {
-									return entities;
-								}
-								return entities.map((entity) => {
-									this.logger!.debug('Transforming entity id...');
-									return this.beforeSaveTransformID(
-										entity,
-										this.service.settings.idField,
-									);
-								});
-							})
-							.then(async (entities) => {
-								this.logger!.debug(`Attempting to create entities: ${entities}`);
-								return await this['_upserttMany'](entities, options);
-							})
-							.then(
-								async (entities) =>
-									await this.findById(
-										ctx,
-										Object.entries(entities.insertedIds).map(
-											(key) => key[1],
-										) as any,
-									),
-							)
-							.then(
-								async (entities) =>
-									await this.transformDocuments(ctx, ctx.params, entities),
-							)
-					);
-				} else if (!isArray(entityOrEntities) && isObject(entityOrEntities)) {
-					return (
-						this.beforeEntityChange('create', entityOrEntities, ctx)
-							.then(async (entity: any) => await this.validateEntity(entity))
-							// Apply idField
-							.then((entity: any) =>
-								this.beforeSaveTransformID(entity, this.service.settings.idField),
-							)
-							.then(async (entity: any) => {
-								this.logger!.debug(`Attempting to create entity: ${entity}`);
-								return await this['_create'](entity, options);
-							})
-							.then(async (entities) => await this.findById(ctx, entities.insertedId))
-					);
-				}
-				return reject(
-					new Errors.MoleculerClientError(
-						"Invalid request! The 'params' must contain 'entityOrEntities'!",
-						400,
-					),
-				);
-			})
-			.then(async (docs) => await this.transformDocuments(ctx, ctx.params, docs))
-			.then(async (json) => await this.entityChanged('created', json, ctx).then(() => json))
-			.catch((err: any) => {
-				this.logger!.error(`Failed to create entity: ${err}`);
-				return new Errors.MoleculerServerError(
-					`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
-					500,
-					'FAILED_TO_CREATE_ENTITY',
-					err,
-				);
-			});
+	public async insert<T extends Entity>(
+		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
+		options?: CreateOptions,
+	): Promise<T | T[]> {
+		return await this.create(entityOrEntities, options);
 	}
 
 	/**
@@ -700,20 +615,18 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async updateById<T extends Entity>(
-		ctx: Context,
 		id: any,
 		update: EntityData<T>,
 		options?: UpdateOptions<T>,
 	): Promise<any> {
-		const params = this.sanitizeParams(ctx, update);
-		this.logger!.debug(`Updating entity by ID '${id}' with ${JSON.stringify(params)}`);
+		this.logger!.debug(`Updating entity by ID '${id}' with ${JSON.stringify(update)}`);
 		const transformId: any = this.beforeQueryTransformID(id);
-		const entity = await this['_nativeUpdate']({ [transformId]: id }, params, options)
+		const entity = await this['_nativeUpdate']({ [transformId]: id }, update, options)
 			.then(async (docs: any) => {
 				this.logger!.debug(`Updated entity by ID '${id}': ${docs}`);
-				const updatedEntity = await this.findById(ctx, id);
+				const updatedEntity = await this.findById(id);
 				this.logger!.debug('Transforming update docs...');
-				return this.transformDocuments(ctx, params, updatedEntity);
+				return updatedEntity;
 			})
 			.catch((error: any) => {
 				this.logger!.error(`Failed to updateById ${error}`);
@@ -732,17 +645,43 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 *
 	 * @param {any} id
 	 * @param {DeleteOptions<T>} options
-	 * @returns {Promise}
+	 * @returns {Promise<number>}
 	 * @memberof MemoryDbAdapter
 	 */
-	public async removeById<T extends Entity>(id: any, options?: DeleteOptions<T>): Promise<any> {
+	public async removeById<T extends Entity>(
+		id: any,
+		options?: DeleteOptions<T>,
+	): Promise<number> {
 		const transformId: any = this.beforeQueryTransformID(id);
 		return await this['_nativeDelete']({ [transformId]: id }, options).catch((error: any) => {
 			this.logger!.error(`Failed to removeById ${error}`);
 			return new Errors.MoleculerServerError(
 				`Failed to removeById ${error}`,
 				500,
-				'FAILED_TO_UPDATE_BY_ID',
+				'FAILED_TO_REMOVE_BY_ID',
+				error,
+			);
+		});
+	}
+
+	/**
+	 * Remove many entities by ID
+	 *
+	 * @param {any[]} id
+	 * @param {DeleteOptions<T>} options
+	 * @returns {Promise<number>}
+	 * @memberof MemoryDbAdapter
+	 */
+	public async removeMany<T extends Entity>(
+		id: any[],
+		options?: DeleteOptions<T>,
+	): Promise<number> {
+		return await this['_nativeDelete'](id, options).catch((error: any) => {
+			this.logger!.error(`Failed to removeMany by id: ${error}`);
+			return new Errors.MoleculerServerError(
+				`Failed to removeMany by id: ${error}`,
+				500,
+				'FAILED_TO_REMOVE_MANY_BY_ID',
 				error,
 			);
 		});
@@ -761,7 +700,15 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		where?: FilterQuery<T>,
 		options?: CountOptions<T, P>,
 	): Promise<number> {
-		return this['_count'](where, options);
+		return this['_count'](where, options).catch((error: any) => {
+			this.logger!.error(`Failed to count: ${error}`);
+			return new Errors.MoleculerServerError(
+				`Failed to count ${error}`,
+				500,
+				'FAILED_TO_COUNT',
+				error,
+			);
+		});
 	}
 
 	/**
@@ -774,59 +721,18 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async find<T extends Entity, P extends string>(
-		// ctx: Context<{ where: FilterQuery<T>; options?: FindOptions<T, P> }>,
 		where: FilterQuery<T>,
 		options?: FindOptions<T, P>,
 	): Promise<Loaded<T, P> | Loaded<T, P>[]> {
-		// const params = this.sanitizeParams(ctx, ctx.params);
-		// const { where, options } = params;
-		// const params = ctx.params;
-		/* const response: Loaded<T, P>[] = params.where
-			? await this['_find'](params.where, params.options)
-					// return await this['_find'](where, options)
-					.then(async (docs: any) => {
-						this.logger!.debug('Transforming find docs...');
-						return await this.transformDocuments(ctx, params, docs);
-					})
-					.catch((error: any) => {
-						this.logger!.error(`Failed to find ${error}`);
-						return new moleculer.Errors.MoleculerServerError(
-							`Failed to find ${error}`,
-							500,
-							'FAILED_TO_FIND_ONE_BY_OPTIONS',
-							error,
-						);
-					})
-			: await this['_find'](params)
-					// return await this['_find'](where, options)
-					.then(async (docs: any) => {
-						this.logger!.debug('Transforming find docs...');
-						return await this.transformDocuments(ctx, params, docs);
-					})
-					.catch((error: any) => {
-						this.logger!.error(`Failed to find ${error}`);
-						return new moleculer.Errors.MoleculerServerError(
-							`Failed to find ${error}`,
-							500,
-							'FAILED_TO_FIND_ONE_BY_OPTIONS',
-							error,
-						);
-					});
-		return response.length > 1 ? response : response[0]; */
-		return await this['_find'](where, options);
-		/* .then(async (docs: any) => {
-				this.logger!.debug('Transforming find docs...');
-				return await this.transformDocuments(ctx, params, docs);
-			})
-			.catch((error: any) => {
-				this.logger!.error(`Failed to find ${error}`);
-				return new Errors.MoleculerServerError(
-					`Failed to find ${error}`,
-					500,
-					'FAILED_TO_FIND_ONE_BY_OPTIONS',
-					error,
-				);
-			}); */
+		return await this['_find'](where, options).catch((error: any) => {
+			this.logger!.error(`Failed to find: ${error}`);
+			return new Errors.MoleculerServerError(
+				`Failed to find ${error}`,
+				500,
+				'FAILED_TO_FIND',
+				error,
+			);
+		});
 	}
 
 	/**
@@ -839,131 +745,20 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async findOne<T extends Entity, P extends string>(
-		ctx: Context<{ where: FilterQuery<T>; options?: FindOneOptions<T, P> }>,
-		// findOptions?: any,
+		where: FilterQuery<T>,
+		options?: FindOneOptions<T, P>,
 	): Promise<null | Loaded<T, P>> {
-		const params = this.sanitizeParams(ctx, ctx.params);
-		const entity = await this['_findOne'](params)
-			.then(async (docs: any) => {
-				this.logger!.debug('Transforming findOne docs...');
-				return await this.transformDocuments(ctx, params, docs);
-			})
-			.catch((error: any) => {
-				this.logger!.error(`Failed to findOne: ${error}`);
-				return new Errors.MoleculerServerError(
-					`Failed to findOne ${error}`,
-					500,
-					'FAILED_TO_FIND_ONE',
-					error,
-				);
-			});
-		/* return this.afterRetrieveTransformID(entity, this.service.settings.idField) as
-			| T
-			| undefined; */
+		const entity = await this['_findOne'](where, options).catch((error: any) => {
+			this.logger!.error(`Failed to findOne: ${error}`);
+			return new Errors.MoleculerServerError(
+				`Failed to findOne ${error}`,
+				500,
+				'FAILED_TO_FIND_ONE',
+				error,
+			);
+		});
 		return entity;
 	}
-
-	/**
-	 * Gets item by id(s). Can use find options, no where clause.
-	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {string | number | string[] | number[]} id - id(s) of entity
-	 * @param {Object} findOptions - find options, like relations, order, etc. No where clause
-	 * @returns {Promise<T | undefined>}
-	 * @memberof MikroORMDbAdapter
-	 */
-	/* async findByIdWO<T extends Entity>(
-		ctx: Context,
-		key: string | undefined | null = this.service.settings.idField,
-		id: string | number | string[] | number[],
-		findOptions?: any,
-	): Promise<T | undefined> {
-		const transformId = this.beforeQueryTransformID(key);
-		const params = this.sanitizeParams(ctx, ctx.params);
-		const entity =
-			this.opts.type !== 'mongodb'
-				? isArray(id)
-					? await this['_find']({
-							where: { [transformId]: In([...id]) },
-							...findOptions,
-					  })
-							.then((docs: any) => {
-								this.logger!.debug('Transforming findByIdWO docs...');
-								return this.transformDocuments(ctx, params, docs);
-							})
-							.catch((error: any) => {
-								this.logger!.error(`Failed to findByIdWO ${error}`);
-								new Errors.MoleculerServerError(
-									`Failed to findByIdWO ${error}`,
-									500,
-									'FAILED_TO_FIND_BY_ID_WO',
-									error,
-								);
-							})
-					: await this['_findOneOrFail']({
-							where: { [transformId]: In([id]) },
-							...findOptions,
-					  })
-							.then((docs: any) => {
-								this.logger!.debug('Transforming findByIdWO docs...');
-								return this.transformDocuments(ctx, params, docs);
-							})
-							.catch((error: any) => {
-								this.logger!.error(`Failed to findByIdWO ${error}`);
-								new Errors.MoleculerServerError(
-									`Failed to findByIdWO ${error}`,
-									500,
-									'FAILED_TO_FIND_BY_ID_WO',
-									error,
-								);
-							})
-				: isArray(id)
-				? await this['_find']({
-						where: {
-							[transformId]: {
-								$in: [
-									...map(id, (recordId: any) => this.toMongoObjectId(recordId)),
-								],
-								// $in: [...[id.forEach((recordId: any) => new ObjectId(recordId))]],
-							},
-							...findOptions,
-						},
-				  })
-						.then((docs: any) => {
-							this.logger!.debug('Transforming findByIdWO docs...');
-							return this.transformDocuments(ctx, params, docs);
-						})
-						.catch((error: any) => {
-							this.logger!.error(`Failed to findByIdWO ${error}`);
-							new Errors.MoleculerServerError(
-								`Failed to findByIdWO ${error}`,
-								500,
-								'FAILED_TO_FIND_BY_ID_WO',
-								error,
-							);
-						})
-				: await this['_findOneOrFail']({
-						where: { [transformId]: { $in: [this.toMongoObjectId(id)] } },
-						...findOptions,
-				  })
-						.then((docs: any) => {
-							this.logger!.debug('Transforming findByIdWO docs...');
-							return this.transformDocuments(ctx, params, docs);
-						})
-						.catch((error: any) => {
-							this.logger!.error(`Failed to findByIdWO ${error}`);
-							new Errors.MoleculerServerError(
-								`Failed to findByIdWO ${error}`,
-								500,
-								'FAILED_TO_FIND_BY_ID_WO',
-								error,
-							);
-						}); // needed for mongodb
-		return this.afterRetrieveTransformID(entity, this.service.settings.idField) as
-			| T
-			| undefined;
-	} */
 
 	/**
 	 * Gets item by id(s). No find options can be provided
@@ -976,45 +771,18 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 *
 	 */
 	public async findById<T extends Entity>(
-		ctx: Context,
-		// key: string | undefined | null = this.service.settings.idField,
 		id: string | number | string[] | number[],
 	): Promise<T | undefined> {
-		// const transformId = this.beforeQueryTransformID(key);
-		const params = this.sanitizeParams(ctx, ctx.params);
-		// const entity =
-
-		return isArray(id)
-			? // ? await this['_find']([...map(id, (recordId: any) => this.toMongoObjectId(recordId))])
-			  await this['_find'](id)
-					.then(async (docs: any) => {
-						this.logger!.debug('Transforming findByIdWO docs...');
-						return await this.transformDocuments(ctx, params, docs);
-					})
-					.catch((error: any) => {
-						this.logger!.error(`Failed to findById ${error}`);
-						return new Errors.MoleculerServerError(
-							`Failed to findById ${error}`,
-							500,
-							'FAILED_TO_FIND_BY_ID',
-							error,
-						);
-					})
-			: // : await this['_findOneOrFail'](this.toMongoObjectId(id))
-			  await this['_findOneOrFail'](id)
-					.then(async (docs: any) => {
-						this.logger!.debug('Transforming findByIdWO docs...');
-						return await this.transformDocuments(ctx, params, docs);
-					})
-					.catch((error: any) => {
-						this.logger!.error(`Failed to findById ${error}`);
-						return new Errors.MoleculerServerError(
-							`Failed to findById ${error}`,
-							500,
-							'FAILED_TO_FIND_BY_ID',
-							error,
-						);
-					});
+		const record = await this['_find'](id).catch((error: any) => {
+			this.logger!.error(`Failed to findById ${error}`);
+			return new Errors.MoleculerServerError(
+				`Failed to findById ${error}`,
+				500,
+				'FAILED_TO_FIND_BY_ID',
+				error,
+			);
+		});
+		return record[0];
 	}
 
 	/**
@@ -1033,7 +801,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		const id = params.id;
 		let origDoc: any;
 		const shouldMapping = params.mapping === true;
-		return this['findById'](ctx, id)
+		return this['findById'](id)
 			.then(async (doc) => {
 				if (!doc) {
 					return Promise.reject(
@@ -1115,21 +883,41 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			// this.logger!.warn('Getting count using params: ', countParams),
 			// Get count of all rows
 			// this['count'](countParams),
-			this['_findAndCount']({}, params),
+			this['_findAndCount']({}, params).catch((error: any) => {
+				this.logger!.error(`Failed to list ${error}`);
+				return new Errors.MoleculerServerError(
+					`Failed to list ${error}`,
+					500,
+					'FAILED_TO_LIST',
+					error,
+				);
+			}),
 		]).then(
 			async (res) =>
-				await this.transformDocuments(ctx, params, res[1][0]).then((docs) => ({
-					// Rows
-					rows: docs,
-					// Total rows
-					total: res[1][1],
-					// Page
-					page: params.page,
-					// Page size
-					pageSize: params.pageSize,
-					// Total pages
-					totalPages: Math.floor((res[1][1] + params.pageSize! - 1) / params.pageSize!),
-				})),
+				await this.transformDocuments(ctx, params, res[1][0])
+					.then((docs) => ({
+						// Rows
+						rows: docs,
+						// Total rows
+						total: res[1][1],
+						// Page
+						page: params.page,
+						// Page size
+						pageSize: params.pageSize,
+						// Total pages
+						totalPages: Math.floor(
+							(res[1][1] + params.pageSize! - 1) / params.pageSize!,
+						),
+					}))
+					.catch((error: any) => {
+						this.logger!.error(`Failed to transform response: ${error}`);
+						return new Errors.MoleculerServerError(
+							`Failed to  transform response ${error}`,
+							500,
+							'FAILED_TO_TRANSFORM_RESPONSE',
+							error,
+						);
+					}),
 		);
 	}
 
@@ -2250,7 +2038,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @returns {Object|Array<Object>} Found entity(ies).
 				 */
 				getById(
-					ctx: Context,
+					// ctx: Context,
 					// @ts-ignore
 					// key: string | undefined | null = this.settings.idField,
 					id: string | any[],
@@ -2259,7 +2047,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					return resolve().then(() =>
 						// @ts-ignore
 						this.adapter.findById(
-							ctx,
+							// ctx,
 							// key,
 							// @ts-ignore
 							decoding ? this.adapter.decodeID(id) : id,
@@ -2587,7 +2375,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 */
 				_insert(ctx: Context, params: any): object | object[] {
 					const { entityOrEntities, options } = params;
-					return (
+					/* return (
 						this.beforeEntityChange('create', entityOrEntities, ctx)
 							// @ts-ignore
 							.then((entity: any) => {
@@ -2618,7 +2406,137 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 								// @ts-ignore
 								this.entityChanged('created', json, ctx).then(() => json),
 							)
-					);
+					); */
+					return resolve()
+						.then(async () => {
+							if (isArray(entityOrEntities)) {
+								return (
+									all(
+										entityOrEntities.map(
+											async (entity: any) =>
+												await this.beforeEntityChange(
+													'create',
+													entity,
+													ctx,
+												),
+										),
+									)
+										.then(async (entities) => {
+											// @ts-ignore
+											this.logger!.debug(
+												`Validating entities to create: ${entities}`,
+											);
+											return this.validateEntity(entities);
+										})
+										.then((entities) =>
+											all(
+												entities.map(async (entity: any) =>
+													this.beforeEntityChange('create', entity, ctx),
+												),
+											),
+										)
+										// Apply idField
+										.then((entities) => {
+											// @ts-ignore
+											if (this.service.settings.idField === '_id') {
+												return entities;
+											}
+											return entities.map((entity) => {
+												// @ts-ignore
+												this.logger!.debug('Transforming entity id...');
+												// @ts-ignore
+												return this.adapter.beforeSaveTransformID(
+													entity,
+													// @ts-ignore
+													this.service.settings.idField,
+												);
+											});
+										})
+										.then(async (entities) => {
+											// @ts-ignore
+											this.logger!.debug(
+												`Attempting to create entities: ${entities}`,
+											);
+											// @ts-ignore
+											return await this.adapter.insert(entities, options);
+											// return await this['_upserttMany'](entities, options);
+										})
+										.then(
+											async (entities) =>
+												// @ts-ignore
+												await this.adapter.findById(
+													// ctx,
+													Object.entries(entities.insertedIds).map(
+														(key) => key[1],
+													) as any,
+												),
+										)
+										.then(
+											async (entities) =>
+												await this.transformDocuments(
+													ctx,
+													ctx.params,
+													entities,
+												),
+										)
+								);
+							} else if (!isArray(entityOrEntities) && isObject(entityOrEntities)) {
+								return (
+									this.beforeEntityChange('create', entityOrEntities, ctx)
+										.then(
+											async (entity: any) =>
+												await this.validateEntity(entity),
+										)
+										// Apply idField
+										.then((entity: any) =>
+											// @ts-ignore
+											this.adapter.beforeSaveTransformID(
+												entity,
+												// @ts-ignore
+												this.service.settings.idField,
+											),
+										)
+										.then(async (entity: any) => {
+											// @ts-ignore
+											this.logger!.debug(
+												`Attempting to create entity: ${entity}`,
+											);
+											// @ts-ignore
+											return await this.adapter.create(entity, options);
+											// return await this['_create'](entity, options);
+										})
+									/* .then(
+											async (entities) =>
+												// @ts-ignore
+												await this.adapter.findById(
+													ctx,
+													entities.insertedId,
+												),
+										) */
+								);
+							}
+							return reject(
+								new Errors.MoleculerClientError(
+									"Invalid request! The 'params' must contain 'entityOrEntities'!",
+									400,
+								),
+							);
+						})
+						.then(async (docs) => await this.transformDocuments(ctx, ctx.params, docs))
+						.then(
+							async (json) =>
+								await this.entityChanged('created', json, ctx).then(() => json),
+						)
+						.catch((err: any) => {
+							// @ts-ignore
+							this.logger!.error(`Failed to create entity: ${err}`);
+							return new Errors.MoleculerServerError(
+								`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
+								500,
+								'FAILED_TO_CREATE_ENTITY',
+								err,
+							);
+						});
 				},
 
 				/**
@@ -2642,7 +2560,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					const id = params.id;
 					let origDoc: any;
 					const shouldMapping = params.mapping === true;
-					return this.getById(ctx, /* key, */ id, true)
+					return this.getById(/* ctx, */ /* key, */ id, true)
 						.then((doc: any) => {
 							if (!doc) {
 								return Promise.reject(
@@ -2742,7 +2660,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 								`Updating entity by ID '${id}' with ${JSON.stringify(entity)}`,
 							);
 							// @ts-ignore
-							return await this.adapter.updateById(ctx, id, entity);
+							return await this.adapter.updateById(id, entity);
 						})
 						.then((json: any) =>
 							// @ts-ignore
@@ -2777,7 +2695,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					return (
 						Promise.resolve()
 							.then(async () => {
-								entity = await this.getById(ctx, /* null, */ id, true);
+								entity = await this.getById(/* ctx, */ /* null, */ id, true);
 								return entity;
 							})
 							// @ts-ignore
