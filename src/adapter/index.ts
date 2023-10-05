@@ -26,7 +26,6 @@ import {
 	isObject,
 	isString,
 	isUndefined,
-	map,
 	replace,
 	set,
 	uniq,
@@ -55,11 +54,9 @@ import {
 	Loaded,
 	MikroORM,
 	MikroORMOptions,
-	NativeInsertUpdateOptions,
 	RequiredEntityData,
 	UpdateOptions,
 } from '@mikro-orm/core';
-// import { flatten } from 'flat';
 import { ObjectId } from '@mikro-orm/mongodb';
 import { ListParams } from '../types/mikroormadapter';
 import { name, version, repository } from '../../package.json';
@@ -492,28 +489,24 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @returns {Promise}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async disconnect(): Promise<any> {
-		this.connectionManager!.connections.forEach(async (connection: any) => {
-			this.logger!.info(`Attempting to disconnect from database ${connection.name}...`);
-			await this.connectionManager!.close(connection.name)
-				.then((disconnected: any) =>
-					disconnected === true
-						? this.logger!.info(`Disconnected from database ${connection.name}`)
-						: this.logger!.info(
-								`Failed to disconnect from database ${connection.name}`,
-						  ),
-				)
-				.catch((error: any) => {
+	public async disconnect(): Promise<void> {
+		await Promise.all(
+			this.connectionManager!.connections.map(async (connection: any) => {
+				this.logger!.info(`Attempting to disconnect from database ${connection.name}...`);
+				try {
+					await this.connectionManager!.close(connection.name);
+					this.logger!.info(`Disconnected from database ${connection.name}`);
+				} catch (error) {
 					this.logger!.error(`Failed to disconnect from database ${error}`);
-					new Errors.MoleculerServerError(
+					throw new Errors.MoleculerServerError(
 						`Failed to disconnect from database ${error}`,
 						500,
 						'FAILED_TO_DISCONNECT_FROM_DATABASE',
 						error,
 					);
-				});
-		});
-		return resolve();
+				}
+			}),
+		);
 	}
 	// #endregion Properties, constructor, init, connect, disconnect
 	// #region Adapter custom methods
@@ -543,18 +536,14 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					.then(async (docs: T[]) => {
 						console.log('docs: ', docs);
 						const docsArray: T[] = [];
-						// const errors: any[] = [];
 						this.logger!.debug('Attempting to Persist created entity and flush');
 						forEach(docs, async (doc: T) => {
 							console.log('doc to persist: ', doc);
 							try {
-								// await this['_em'].fork().persist(doc).flush();
 								await this['manager']!.fork().persist(doc).flush();
-								// await this['_persistAndFlush'](doc);
 								docsArray.push(doc);
 							} catch (error) {
 								this.logger!.error(`Failed to create entity: ${error}`);
-								// errors.push(error);
 								return new Errors.MoleculerServerError(
 									`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
 									500,
@@ -1094,8 +1083,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					entity.map((doc: any) => {
 						this.logger!.debug('Applying idField to docs...');
 						return this.afterRetrieveTransformID(doc, userDefinedIDField);
-						// return this.afterRetrieveTransformID(doc, userDefinedIDField);
-						// return doc;
 					}),
 				)
 				// Encode IDs
@@ -2379,38 +2366,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 */
 				_insert(ctx: Context, params: any): object | object[] {
 					const { entityOrEntities, options } = params;
-					/* return (
-						this.beforeEntityChange('create', entityOrEntities, ctx)
-							// @ts-ignore
-							.then((entity: any) => {
-								// @ts-ignore
-								this.logger.debug(`Validating entity(s) to insert: ${entity}`);
-								// @ts-ignore
-								return this.validateEntity(entity);
-							})
-							// Apply idField
-							.then((entity: any) => {
-								// @ts-ignore
-								this.logger.debug('Transforming entity id...');
-								// @ts-ignore
-								return this.adapter.beforeSaveTransformID(
-									entity,
-									// @ts-ignore
-									this.settings.idField,
-								);
-							})
-							.then(async (entity: any) => {
-								// @ts-ignore
-								this.logger.debug(`Attempting to insert entity: ${entity}`);
-								// @ts-ignore
-								return await this.adapter.insert(ctx, entity, options);
-							})
-							.then((docs: any) => this.transformDocuments(ctx, {}, docs))
-							.then((json: any) =>
-								// @ts-ignore
-								this.entityChanged('created', json, ctx).then(() => json),
-							)
-					); */
 					return resolve()
 						.then(async () => {
 							if (isArray(entityOrEntities)) {
@@ -2442,7 +2397,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 										// Apply idField
 										.then((entities) => {
 											// @ts-ignore
-											if (this.service.settings.idField === '_id') {
+											if (this.settings.idField === '_id') {
 												return entities;
 											}
 											return entities.map((entity) => {
@@ -2452,7 +2407,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 												return this.adapter.beforeSaveTransformID(
 													entity,
 													// @ts-ignore
-													this.service.settings.idField,
+													this.settings.idField,
 												);
 											});
 										})
@@ -2463,7 +2418,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 											);
 											// @ts-ignore
 											return await this.adapter.insert(entities, options);
-											// return await this['_upserttMany'](entities, options);
 										})
 										.then(
 											async (entities) =>
@@ -2497,7 +2451,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 											this.adapter.beforeSaveTransformID(
 												entity,
 												// @ts-ignore
-												this.service.settings.idField,
+												this.settings.idField,
 											),
 										)
 										.then(async (entity: any) => {
@@ -2507,7 +2461,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 											);
 											// @ts-ignore
 											return await this.adapter.create(entity, options);
-											// return await this['_create'](entity, options);
 										})
 									/* .then(
 											async (entities) =>
@@ -2745,8 +2698,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					this.settings.excludeFields = this.settings.excludeFields.split(/\s+/);
 				}
 
-				// if (!this.schema.adapter) this.adapter = new MemoryAdapter();
-				// else this.adapter = this.schema.adapter;
 				this.adapter = this.schema.adapter;
 
 				this.adapter.init(this.broker, this);
