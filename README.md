@@ -11,8 +11,7 @@ A Mikro-ORM adapter for moleculer
 ## Features
 
 - All supported Mikro-ORM databases
-- Active Record methodology for entities or data mapping methodology if entity class doesn't extend Mikro-ORM BaseEntity built in
-- Connection Manager - manage your existing connections or create new ones to different database systems on the same service. New connections are a new instance of ```MikroORMDbAdapter``` if ```true``` is added after datasource options. If ```true``` is not specified, then the connection will be created with raw Mikro-ORM datasource and not inherit class methods, only Mikro-ORM methods will be available (about the same as using typeorm by itself).
+- Connection Manager - manage your existing connections or create new ones to different database systems on the same service. New connections are a new instance of ```MikroORMDbAdapter``` if ```true``` is added after datasource options. If ```true``` is not specified, then the connection will be created with raw Mikro-ORM datasource and not inherit class methods, only Mikro-ORM methods will be available (about the same as using Mikro-ORM by itself).
 - All entities added to MikroORMDbAdapter and model array are added to this.adapter
   - Base entity ```this.adapter```
   - any additional entity ```this.adapter.<entity name>``` when model has more than one entity. Note: additional entities added to ```model:``` are tables in the same database.
@@ -20,7 +19,6 @@ A Mikro-ORM adapter for moleculer
 - Database connections for service start and stop when service does, so closing db connection not necessary.
 - Setting ```idField``` in service schema is used to specify own preference and obfusicate the true db id field in the entire response, includng returned relations. This gets converted to the actual db field name automatically when querying the database, then converted back to idField on response. If you wish to use the actual db id field of the database, change idField to the database id field name.
 - The service setting ```fields:[]``` filters the response, just like in moleculer-db, so if you do change the idField in settings, be sure to change the id field in service settings ```fields``` as well.
-- Enhanced list method that converts moleculer-db list paramaters to typeorm paramaters or use typeorm ```FindManyOptions``` paramaters instead [FindManyOptions](https://github.com/typeorm/typeorm/blob/d8a2e3730f12bb2b8e521635e176a284594121f3/src/find-options/FindManyOptions.ts). List can return relations, though this could be process intensive depending on the amount of relations and entities returned.
 
 ## Install
 #### NPM
@@ -36,15 +34,17 @@ yarn add moleculer-db @tyrsolutions/moleculer-db-mikroorm-adapter
 
 In service schema:
 ```js
+import { SqlHighlighter } from '@mikro-orm/sql-highlighter';
 service: {
     ...
     adapter: new MikroORMDbAdapter({
         name: 'default',
-        type: 'better-sqlite3',
-        database: 'temp/test.db',
-        synchronize: true,
-        logging: ['query', 'error'],
-        // entities: [TypeProduct], no longer needed entities are pulled from model and added. Providing one here will override model:
+        type: 'better-sqlite',
+        dbName: 'temp/test.db',
+        entities: [...entities],
+        entitiesTs: [...entities],
+        highlighter: new SqlHighlighter(), // optional highlighter
+        debug: true, // logging defaults to console.log(), available logger namespaces: 'query' | 'query-params' | 'discovery' | 'info'
     }),
 
     model: TypeProduct || [TypeProduct, TypeProduct2], // accepts single entity or array of entities.
@@ -66,101 +66,19 @@ async started() {
     const productsConnection = await this.adapter.connectionManager?.create(
         {
             name: 'products',
-            type: 'better-sqlite3',
-            database: `temp/dbname_product.db`,
-            synchronize: true,
-            logging: [/* 'query', */ 'error'],
-            entities: [ProductEntity],
+            type: 'better-sqlite',
+            dbName: `temp/dbname_product.db`,
+            entities: [...entities],
+            entitiesTs: [...entities],
+            highlighter: new SqlHighlighter(), // optional highlighter
+            debug: true, // logging defaults to console.log(), available logger namespaces: 'query' | 'query-params' | 'discovery' | 'info'
         },
         true,
-    )!;
+    );
     await productsConnection.init(this.broker, this); // needed to initialize the conection with broker and service
     await productsConnection.connect(); // connects to the database
     this.products = productsConnection; // assigns new connection to service and can be called with this.products
 }
-```
-
-### Active Record
-Entity:
-```js
-import { BaseEntity, Entity, PrimaryGeneratedColumn, Column } from "typeorm"
-
-@Entity()
-export class User extends BaseEntity { // class extending BaseEntity
-    @PrimaryGeneratedColumn()
-    id: number
-
-    @Column()
-    firstName: string
-
-    @Column()
-    lastName: string
-
-    @Column()
-    isActive: boolean
-
-    static findByName(firstName: string, lastName: string) {
-        return this.createQueryBuilder("user")
-            .where("user.firstName = :firstName", { firstName })
-            .andWhere("user.lastName = :lastName", { lastName })
-            .getMany()
-    }
-}
-```
-In service actions, methods, etc. (anywhere this.adapter can be used):
-```js
-const user = {
-    "firstName": "John",
-    "lastName": "Doe",
-    "active": true
-}
-// no need to create new object with entity, just pass one
-this.adapter.create(user)
-
-// use static method functions from entity, no additional setup needed
-this.adapter.findByName("John", "Doe")
-```
-
-### Data Mapping
-Entity:
-```js
-import { BaseEntity, Entity, PrimaryGeneratedColumn, Column } from "typeorm"
-
-@Entity()
-export class User { // class not extending BaseEntity
-    @PrimaryGeneratedColumn()
-    id: number
-
-    @Column()
-    firstName: string
-
-    @Column()
-    lastName: string
-
-    @Column()
-    isActive: boolean
-}
-```
-In service actions, methods, etc. (anywhere this.adapter can be used):
-```js
-const user = new User()
-user.firstName = "John";
-user.lastName = "Doe";
-user.active = true;
-
-// create new object with entity then save
-this.adapter.User.repository.save(user);
-
-// or
-
-const user = {
-    "firstName": "John",
-    "lastName": "Doe",
-    "active": true
-}
-
-// no need to create new object with entity, just pass one
-this.adapter.User.repository.save(user);
 ```
 
 ## Test
@@ -267,8 +185,8 @@ It will be called in `broker.start()` and is used internally.
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `broker` | `ServiceBroker` | **required** |  |
-| `service` | `Service` | **required** |  |
+| `broker` | `ServiceBroker` | **required** | Moleculer broker instance |
+| `service` | `Service` | **required** | Moleculer service instance |
 
 
 
@@ -299,7 +217,7 @@ It will be called in `broker.stop()` and is used internally.
 *No input parameters.*
 
 ### Results
-**Type:** `Promise`
+**Type:** `Promise.<void>`
 
 
 
@@ -307,12 +225,13 @@ It will be called in `broker.stop()` and is used internally.
 ## `create` 
 
 Create new record or records.
+If record exists it is skipped, otherwise it is created.
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
 | `entityOrEntities` | `Object`, `Array.<Object>` | **required** | record(s) to create |
-| `options` | `Object` | - | Optional MongoDB insert options |
+| `options` | `Object` | - | Optional create options |
 
 ### Results
 **Type:** `Promise.<(Object|Array.<Object>)>`
@@ -322,13 +241,13 @@ Create new record or records.
 
 ## `insert` 
 
-Create many new entities.
+Create one or many new entities.
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | Context instance. |
-| `params` | `Object` | - | Parameters. |
+| `entityOrEntities` | `Object`, `Array.<Object>` | **required** | entity or entities to create. |
+| `options` | `Object` | - | Insert options. |
 
 ### Results
 **Type:** `Object`, `Array.<Object>`
@@ -343,14 +262,46 @@ Update an entity by ID
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
 | `id` | `any` | **required** | ID of record to be updated |
 | `update` | `Object` | **required** | Object with update data |
+| `options` | `Object` | **required** | Object with update options |
 
 ### Results
-**Type:** `Promise`
+**Type:** `Promise.<T>`
 
 - Updated record
+
+
+## `MikroORMDbAdapter#removeById` 
+
+Remove an entity by ID
+
+### Parameters
+| Property | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `id` | `any` | **required** |  |
+| `options` | `DeleteOptions.<T>` | **required** |  |
+
+### Results
+**Type:** `Promise.<number>`
+
+
+
+
+## `MikroORMDbAdapter#removeMany` 
+
+Remove many entities by ID
+
+### Parameters
+| Property | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `id` | `Array.<any>` | **required** |  |
+| `options` | `DeleteOptions.<T>` | **required** |  |
+
+### Results
+**Type:** `Promise.<number>`
+
+
 
 
 ## `count` 
@@ -360,8 +311,8 @@ Count number of matching documents in the db to a query.
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `options` | `Object` | **required** | count options |
-| `query` | `Object` | - | query options |
+| `where` | `Object` | **required** | query options |
+| `options` | `Object` | - | count options |
 
 ### Results
 **Type:** `Promise.<number>`
@@ -371,62 +322,31 @@ Count number of matching documents in the db to a query.
 
 ## `find` 
 
-Finds entities that match given find options.
+Finds all entities matching your FilterQuery and FindOptions.
+Returns array of entities or single entity depending on your query.
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `findManyOptions` | `Object` | **required** | find many options |
+| `where` | `Object` | **required** | query options |
+| `options` | `Object` | - | find options |
 
 ### Results
-**Type:** `Promise.<(Array.<T>|Array.<number>)>`
+**Type:** `Promise.<(T|Array.<T>)>`
 
 
 
 
 ## `findOne` 
 
-Finds first item by a given find options.
+Finds first item by a given FilterQuery and FindOneOptions.
 If entity was not found in the database - returns null.
-Available Options props:
-- comment
-- select
-- where
-- relations
-- relationLoadStrategy
-- join
-- order
-- cache
-- lock
-- withDeleted
-- loadRelationIds
-- loadEagerRelations
-- transaction
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `findOptions` | `Object` | **required** | find options |
-
-### Results
-**Type:** `Promise.<(T|undefined)>`
-
-
-
-
-## `findByIdWO` 
-
-Gets item by id(s). Can use find options, no where clause.
-
-### Parameters
-| Property | Type | Default | Description |
-| -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `key` | `Partial.<T>` | **required** | primary db id column name |
-| `id` | `string`, `number`, `Array.<string>`, `Array.<number>` | **required** | id(s) of entity |
-| `findOptions` | `Object` | **required** | find options, like relations, order, etc. No where clause |
+| `where` | `Object` | **required** | query options |
+| `options` | `Object` | - | find options |
 
 ### Results
 **Type:** `Promise.<(T|undefined)>`
@@ -441,8 +361,6 @@ Gets item by id(s). No find options can be provided
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `key` | `Partial.<T>` | **required** | primary db id column name |
 | `id` | `string`, `number`, `Array.<string>`, `Array.<number>` | **required** | id(s) of entity |
 
 ### Results
@@ -917,7 +835,11 @@ Decode ID of entity.
 
 ## `_find` 
 
-Find entities by query.
+Find entities by params.
+Params should be an object with entity property or an object with `where` query.
+e.g. `{ id: '123456' }` or `{ where: [12345,123456]}` or
+{where: {"$and":[{"id":{"$in":[12345,123456]}}]}}
+Options property is optional.
 
 ### Parameters
 | Property | Type | Default | Description |
@@ -926,7 +848,7 @@ Find entities by query.
 | `params` | `Object` | - | Parameters. |
 
 ### Results
-**Type:** `Array.<Object>`
+**Type:** `Promise.<(T|Array.<T>)>`
 
 List of found entities.
 

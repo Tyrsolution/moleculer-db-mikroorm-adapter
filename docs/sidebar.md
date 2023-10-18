@@ -3,7 +3,7 @@
 - [Quick Start](quick-start)
 - [Configuration](configuration)
 - [Basic Usage](usage)
-- [Relations and Populations](relations.md)
+<!-- - [Relations and Populations](relations.md) -->
 - [Auto Alias Schema](autoalias.md)
 - [API](api)
 - **Links**

@@ -14,7 +14,6 @@ Called using this.adapter.connectionManager
 *No input parameters.*
 
 
-
 ## `manager` 
 
 Grants access to the entity manager of the connection.
@@ -24,7 +23,6 @@ Called using this.adapter.manager
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
 *No input parameters.*
-
 
 
 ## `repository` 
@@ -48,8 +46,8 @@ It will be called in `broker.start()` and is used internally.
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `broker` | `ServiceBroker` | **required** |  |
-| `service` | `Service` | **required** |  |
+| `broker` | `ServiceBroker` | **required** | Moleculer broker instance |
+| `service` | `Service` | **required** | Moleculer service instance |
 
 
 
@@ -67,8 +65,6 @@ It will be called in `broker.start()` and is used internally.
 **Type:** `Promise`
 
 
-
-
 ## `disconnect` 
 
 Disconnects all connections from database and connection manager.
@@ -80,36 +76,33 @@ It will be called in `broker.stop()` and is used internally.
 *No input parameters.*
 
 ### Results
-**Type:** `Promise`
-
-
+**Type:** `Promise.<void>`
 
 
 ## `create` 
 
 Create new record or records.
+If record exists it is skipped, otherwise it is created.
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
 | `entityOrEntities` | `Object`, `Array.<Object>` | **required** | record(s) to create |
-| `options` | `Object` | - | Optional MongoDB insert options |
+| `options` | `Object` | - | Optional create options |
 
 ### Results
 **Type:** `Promise.<(Object|Array.<Object>)>`
 
 
-
-
 ## `insert` 
 
-Create many new entities.
+Create one or many new entities.
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | Context instance. |
-| `params` | `Object` | - | Parameters. |
+| `entityOrEntities` | `Object`, `Array.<Object>` | **required** | entity or entities to create. |
+| `options` | `Object` | - | Insert options. |
 
 ### Results
 **Type:** `Object`, `Array.<Object>`
@@ -124,14 +117,42 @@ Update an entity by ID
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
 | `id` | `any` | **required** | ID of record to be updated |
 | `update` | `Object` | **required** | Object with update data |
+| `options` | `Object` | **required** | Object with update options |
 
 ### Results
-**Type:** `Promise`
+**Type:** `Promise.<T>`
 
 - Updated record
+
+
+## `MikroORMDbAdapter#removeById` 
+
+Remove an entity by ID
+
+### Parameters
+| Property | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `id` | `any` | **required** |  |
+| `options` | `DeleteOptions.<T>` | **required** |  |
+
+### Results
+**Type:** `Promise.<number>`
+
+
+## `MikroORMDbAdapter#removeMany` 
+
+Remove many entities by ID
+
+### Parameters
+| Property | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `id` | `Array.<any>` | **required** |  |
+| `options` | `DeleteOptions.<T>` | **required** |  |
+
+### Results
+**Type:** `Promise.<number>`
 
 
 ## `count` 
@@ -141,78 +162,41 @@ Count number of matching documents in the db to a query.
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `options` | `Object` | **required** | count options |
-| `query` | `Object` | - | query options |
+| `where` | `Object` | **required** | query options |
+| `options` | `Object` | - | count options |
 
 ### Results
 **Type:** `Promise.<number>`
 
 
-
-
 ## `find` 
 
-Finds entities that match given find options.
+Finds all entities matching your FilterQuery and FindOptions.
+Returns array of entities or single entity depending on your query.
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `findManyOptions` | `Object` | **required** | find many options |
+| `where` | `Object` | **required** | query options |
+| `options` | `Object` | - | find options |
 
 ### Results
-**Type:** `Promise.<(Array.<T>|Array.<number>)>`
-
-
+**Type:** `Promise.<(T|Array.<T>)>`
 
 
 ## `findOne` 
 
-Finds first item by a given find options.
+Finds first item by a given FilterQuery and FindOneOptions.
 If entity was not found in the database - returns null.
-Available Options props:
-- comment
-- select
-- where
-- relations
-- relationLoadStrategy
-- join
-- order
-- cache
-- lock
-- withDeleted
-- loadRelationIds
-- loadEagerRelations
-- transaction
 
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `findOptions` | `Object` | **required** | find options |
+| `where` | `Object` | **required** | query options |
+| `options` | `Object` | - | find options |
 
 ### Results
 **Type:** `Promise.<(T|undefined)>`
-
-
-
-
-## `findByIdWO` 
-
-Gets item by id(s). Can use find options, no where clause.
-
-### Parameters
-| Property | Type | Default | Description |
-| -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `key` | `Partial.<T>` | **required** | primary db id column name |
-| `id` | `string`, `number`, `Array.<string>`, `Array.<number>` | **required** | id(s) of entity |
-| `findOptions` | `Object` | **required** | find options, like relations, order, etc. No where clause |
-
-### Results
-**Type:** `Promise.<(T|undefined)>`
-
-
 
 
 ## `findById` 
@@ -222,14 +206,10 @@ Gets item by id(s). No find options can be provided
 ### Parameters
 | Property | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `ctx` | `Context` | **required** | request context |
-| `key` | `Partial.<T>` | **required** | primary db id column name |
 | `id` | `string`, `number`, `Array.<string>`, `Array.<number>` | **required** | id(s) of entity |
 
 ### Results
 **Type:** `Promise.<(T|undefined)>`
-
-
 
 
 ## `getPopulations` 
@@ -309,8 +289,6 @@ Encode ID of entity.
 **Type:** `any`
 
 
-
-
 ## `toMongoObjectId` 
 
 Convert id to mongodb ObjectId.
@@ -324,8 +302,6 @@ Convert id to mongodb ObjectId.
 **Type:** `any`
 
 
-
-
 ## `fromMongoObjectId` 
 
 Convert mongodb ObjectId to string.
@@ -337,8 +313,6 @@ Convert mongodb ObjectId to string.
 
 ### Results
 **Type:** `any`
-
-
 
 
 ## `beforeQueryTransformID` 
@@ -367,8 +341,6 @@ Decode ID of entity.
 
 ### Results
 **Type:** `any`
-
-
 
 
 ## `transformDocuments` 
@@ -405,8 +377,6 @@ Call before entity lifecycle events
 **Type:** `Promise`
 
 
-
-
 ## `entityChanged` 
 
 Clear the cache & call entity lifecycle events
@@ -422,8 +392,6 @@ Clear the cache & call entity lifecycle events
 **Type:** `Promise`
 
 
-
-
 ## `clearCache` 
 
 Clear cached entities
@@ -435,8 +403,6 @@ Clear cached entities
 
 ### Results
 **Type:** `Promise`
-
-
 
 
 ## `filterFields` 
@@ -600,8 +566,6 @@ Call before entity lifecycle events
 **Type:** `Promise`
 
 
-
-
 ## `entityChanged` 
 
 Clear the cache & call entity lifecycle events
@@ -617,8 +581,6 @@ Clear the cache & call entity lifecycle events
 **Type:** `Promise`
 
 
-
-
 ## `clearCache` 
 
 Clear cached entities
@@ -630,8 +592,6 @@ Clear cached entities
 
 ### Results
 **Type:** `Promise`
-
-
 
 
 ## `transformDocuments` 
@@ -649,8 +609,6 @@ Transform the fetched documents
 **Type:** `Array`, `Object`
 
 
-
-
 ## `validateEntity` 
 
 Validate an entity by validator.
@@ -662,8 +620,6 @@ Validate an entity by validator.
 
 ### Results
 **Type:** `Promise`
-
-
 
 
 ## `encodeID` 
@@ -679,8 +635,6 @@ Encode ID of entity.
 **Type:** `any`
 
 
-
-
 ## `decodeID` 
 
 Decode ID of entity.
@@ -694,11 +648,13 @@ Decode ID of entity.
 **Type:** `any`
 
 
-
-
 ## `_find` 
 
-Find entities by query.
+Find entities by params.
+Params should be an object with entity property or an object with `where` query.
+e.g. `{ id: '123456' }` or `{ where: [12345,123456]}` or
+{where: {"$and":[{"id":{"$in":[12345,123456]}}]}}
+Options property is optional.
 
 ### Parameters
 | Property | Type | Default | Description |
@@ -707,7 +663,7 @@ Find entities by query.
 | `params` | `Object` | - | Parameters. |
 
 ### Results
-**Type:** `Array.<Object>`
+**Type:** `Promise.<(T|Array.<T>)>`
 
 List of found entities.
 

@@ -38,13 +38,13 @@ yarn add moleculer-db
         mergeActions: true,
         adapter: new MikroORMDbAdapter({
             name: 'default',
-            type: 'better-sqlite3',
-            database: `temp/dbname_user.db`,
-            synchronize: true,
-            logging: ['query', 'error'],
+            type: 'better-sqlite',
+            dbName: `temp/dbname_user.db`,
+            entities: [...entities],
+            entitiesTs: [...entities],
+            highlighter: new SqlHighlighter(),
+            debug: true,
         }),
-        // model: UserEntity,
-        model: [UserEntity],
 
         mixins: [DbService],
         /**
@@ -94,100 +94,207 @@ yarn add moleculer-db
     })
    ```
 
-   !> Note the `adapter:` and `model:` fields are used here. If the datasource provided to `MikroORMDbAdapter()` has the `entities:` array specified then `model:` is not required. If a name is not provided in the datasource then it will be given a name of `default`. Each conneciton has a unique name and an error will be thrown if a conneciton is being created that has a name already stored in connection manager. The `idField: '_id'` has been set for internal app entity ID usage, so any results from database will be altered to the specified ID automatically. This means that the `fields:` array must be set for the specified internal ID as well in order for the ID field to show in results.
+   !> Note the `adapter:` field is used here. The datasource provided to `MikroORMDbAdapter()` must have the `entities:` (and possibly the `entitiesTs:`) attribute. If a name is not provided in the datasource then it will be given a name of `default`. Each conneciton has a unique name and an error will be thrown if a conneciton is being created that has a name already stored in connection manager. The `idField: '_id'` has been set for internal app entity ID usage, so any results from database will be altered to the specified ID automatically. This means that the `fields:` array must be set for the specified internal ID as well in order for the ID field to show in results.
 
 2. Create your entity
-   The example below is a user entity that relates to itself for `createdBy` and `lastModifiedBy` fields.
+   The example below is a user entity that relates to itself for `createdBy` and `lastModifiedBy` fields. *** Example only, not full code.
 
-   user.entity.ts
+   baseEntityClass.ts
    ```js
-    import {
-        Entity,
-        PrimaryGeneratedColumn,
-        Column,
-        CreateDateColumn,
-        UpdateDateColumn,
-        DeleteDateColumn,
-        Index,
-        BaseEntity,
-        OneToOne,
-        JoinColumn,
-        ManyToOne,
-    } from 'typeorm';
+    import { ManyToOne, PrimaryKey, Property, Ref, ref } from '@mikro-orm/core';
+    import { v4 } from 'uuid';
+    import { ObjectId } from 'mongodb';
+    import { User } from './user.entity';
 
-    export interface IUser {
-        id?: string;
-        login?: string;
-        password?: string;
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        verificationToken?: string;
-        active?: boolean;
-        createdBy?: UserEntity;
+    export interface IBaseEntityClass {
+        id?: ObjectId | string;
+        createdBy?: any;
         createdDate?: Date | null;
         lastModifiedBy?: any;
         lastModifiedDate?: Date | null;
         deletedDate?: Date | null;
     }
 
-    @Entity('users')
-    @Index(['login', 'email', 'verificationToken'], { unique: true })
-    export class UserEntity extends BaseEntity implements IUser {
-        @PrimaryGeneratedColumn('uuid')
-        public id?: string;
+    export abstract class BaseEntityClass {
+        @PrimaryKey()
+        public id?: ObjectId | string = v4();
+        @ManyToOne({
+            entity: () => User,
+            fieldName: 'createdBy',
+            ref: true,
+            // cascade: [Cascade.ALL],
+            nullable: true,
+            eager: true,
+        })
+        public createdBy?: Ref<User>;
 
-        @Column()
-        public login?: string;
+        @Property({ columnType: 'datetime', fieldName: 'createdDate' })
+        public createdDate?: Date = new Date();
 
-        @Column()
-        public password?: string;
+        @ManyToOne({
+            entity: () => User,
+            fieldName: 'lastModifiedBy',
+            ref: true,
+            // cascade: [Cascade.ALL],
+            nullable: true,
+            eager: true,
+        })
+        public lastModifiedBy?: Ref<User>;
 
-        @Column()
-        public firstName?: string;
+        @Property({ columnType: 'datetime', fieldName: 'lastModifiedDate', nullable: true })
+        public lastModifiedDate?: Date = new Date();
 
-        @Column()
-        public lastName?: string;
-
-        @Column()
-        public email?: string;
-
-        @Column({ nullable: true })
-        public verificationToken?: string;
-
-        @Column({ type: 'boolean', default: false })
-        public active?: boolean;
-
-        @ManyToOne('UserEntity', (user: UserEntity) => user.id, { cascade: true /* , eager: true */ })
-        @JoinColumn({ name: 'createdBy' })
-        public createdBy?: UserEntity;
-
-        @CreateDateColumn()
-        public createdDate?: Date;
-
-        @ManyToOne('UserEntity', (user: UserEntity) => user.id, { cascade: true /* , eager: true */ })
-        @JoinColumn({ name: 'lastModifiedBy' })
-        public lastModifiedBy?: UserEntity;
-
-        @UpdateDateColumn()
-        public lastModifiedDate?: Date;
-
-        @DeleteDateColumn()
+        @Property({ fieldName: 'deletedDate', nullable: true })
         public deletedDate?: Date;
 
-        static findByLogin(login: string) {
-            return this.createQueryBuilder('users')
-                .leftJoinAndSelect('users.createdBy', 'createdBy')
-                .leftJoinAndSelect('users.lastModifiedBy', 'lastModifiedBy')
-                .where('users.login = :login', { login })
-                .getOne();
+        public constructor(createdBy: User, lastModifiedBy: User) {
+            this.createdBy = ref(createdBy);
+            this.lastModifiedBy = ref(lastModifiedBy);
         }
     }
+   ```
+
+   profile.entity.ts
+   ```js
+    import { Entity, Property } from '@mikro-orm/core';
+    import { ObjectId } from 'mongodb';
+    import { IProfileBase } from '../types';
+    import { User } from './user.entity';
+    import { BaseEntityClass } from './baseEntityClass';
+
+    export interface IProfile extends IProfileBase {
+        id?: ObjectId | string;
+    }
+
+    @Entity({ tableName: 'profile' })
+    export class Profile extends BaseEntityClass implements IProfile {
+        @Property({ fieldName: 'profileImage' })
+        public profileImage?: string;
+
+        @Property({ columnType: 'array', fieldName: 'socialMedaiLinks' })
+        public socialMedaiLinks?: string[];
+
+        @Property({ fieldName: 'bio' })
+        public bio?: string;
+
+        @Property({ columnType: 'array', fieldName: 'interests', nullable: true })
+        public interests?: string[];
+
+        public location?: string;
+
+        public birthDate?: Date;
+
+        public availability? = '';
+
+        @Property({ columnType: 'array', fieldName: 'imagery', nullable: true })
+        public imagery?: string[];
+
+        @Property({ fieldName: 'active', type: 'boolean', default: false })
+        public active?: boolean;
+
+        public constructor(createdBy: User, lastModifiedBy: User) {
+            super(createdBy, lastModifiedBy);
+        }
+    }
+   ```
+
+   user.entity.ts
+   ```js
+    import {
+        BeforeCreate,
+        Cascade,
+        Entity,
+        Enum,
+        Index,
+        OneToOne,
+        Property,
+        Ref,
+        ref,
+    } from '@mikro-orm/core';
+    import { ObjectId } from 'mongodb';
+    import { IUserBase, UserLang, UserRoleDefault } from '../types';
+    import { Profile } from './profile.entity';
+    import { BaseEntityClass } from './baseEntityClass';
+
+    export interface IUser extends IUserBase {
+        id?: ObjectId | string;
+        password?: string;
+        verificationToken?: string;
+    }
+
+    @JsonObject('User')
+    @Entity({ tableName: 'users' })
+    @Index({
+        properties: ['login', 'email', 'verificationToken'],
+    })
+    export class User extends BaseEntityClass implements IUser {
+        @Property({ fieldName: 'login', unique: true })
+        public login?: string;
+
+        @Property({ fieldName: 'password' })
+        public password?: string;
+
+        @Property({ fieldName: 'firstName' })
+        public firstName?: string;
+
+        @Property({ fieldName: 'lastName' })
+        public lastName?: string;
+
+        @Property({ fieldName: 'fullName' })
+        public fullName?: string;
+
+        @Property({ fieldName: 'email', unique: true })
+        public email?: string;
+
+        @Enum({ fieldName: 'langKey', items: () => UserLang })
+        public langKey?: UserLang = UserLang.ENUS;
+
+        @Enum({
+            fieldName: 'roles',
+            type: 'ArrayType',
+            items: () => UserRoleDefault,
+            array: true,
+            default: [UserRoleDefault.USER],
+        })
+        public roles?: UserRoleDefault[] = [UserRoleDefault.USER];
+
+        @Property({ fieldName: 'verificationToken', nullable: true })
+        public verificationToken?: string;
+
+        @Property({ fieldName: 'active', type: 'boolean', default: false })
+        public active?: boolean;
+
+        @OneToOne(() => Profile, {
+            fieldName: 'profile',
+            ref: true,
+            nullable: true,
+            owner: true,
+            orphanRemoval: true,
+            cascade: [Cascade.ALL],
+            eager: true,
+        })
+        public profile?: Profile;
+        // public profile?: Ref<Profile>;
+
+        public constructor(/* profile: Profile, */ createdBy: User, lastModifiedBy: User) {
+            super(createdBy, lastModifiedBy);
+            // this.createdBy = ref(createdBy);
+            // this.lastModifiedBy = ref(lastModifiedBy);
+            // this.profile = ref(profile);
+        }
+
+        @BeforeCreate()
+        public async doStuffBeforeCreate() {
+            if (!this.fullName) {
+                this.fullName = `${this.firstName} ${this.lastName}`;
+            }
+        }
+    }
+
    ```
 
 3. Use the adapter as you would any other moleculer adapter in a service.
    
    ```js
-   this.adapter.findByLogin('JohnDoe')
+   this.adapter.find('JohnDoe')
    ```
-   !> Note that in the above example we are referencing a method that we created on the user entity. We are able to do this because we're using Active Record as seen by the entity extending TypeORMs `BaseEntity`. This also means that all methods inherited from the `BaseEntity` are also available on `this.adapter` as well. In addition, Repository and Entity Manager are also available.

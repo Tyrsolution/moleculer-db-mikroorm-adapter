@@ -58,11 +58,11 @@ import {
 	UpdateOptions,
 } from '@mikro-orm/core';
 import { ObjectId } from '@mikro-orm/mongodb';
+import { FlattenOptions } from 'flat';
 import { ListParams } from '../types/mikroormadapter';
 import { name, version, repository } from '../../package.json';
 import ConnectionManager from './connectionManager';
-import { FlattenOptions } from 'flat';
-const flatten = (target: unknown, options: FlattenOptions | undefined) =>
+const flatten = async (target: unknown, options: FlattenOptions | undefined) =>
 	import('flat').then(async (flat) => await flat.flatten(target, options));
 /* .catch((err) => {
 			broker.logger.error(err);
@@ -100,7 +100,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Called using this.adapter.connectionManager
 	 *
 	 * @static
-	 * @property {ConnectionManager} connectionManager
+	 * @property {ConnectionManager} connectionManager - Adapter connection manager. Use `this.adapter.connectionManager` to access.
 	 *
 	 * @properties
 	 */
@@ -109,7 +109,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Grants access to the entity manager of the connection.
 	 * Called using this.adapter.manager
 	 * @static
-	 * @property {EntityManager} manager
+	 * @property {EntityManager} manager - Mikro-ORM entity manager
 	 *
 	 * @properties
 	 */
@@ -118,7 +118,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Grants access to the entity repository of the connection.
 	 * Called using this.adapter.repository
 	 * @static
-	 * @property {Repository<Entity>} repository
+	 * @property {Repository<Entity>} repository - Mikro-ORM repository
 	 *
 	 * @properties
 	 */
@@ -144,32 +144,37 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Initialize adapter.
 	 * It will be called in `broker.start()` and is used internally.
 	 * @methods
-	 * @param {ServiceBroker} broker
-	 * @param {Service} service
+	 * @param {ServiceBroker} broker - Moleculer broker instance
+	 * @param {Service} service - Moleculer service instance
 	 * @memberof MikroORMDbAdapter
 	 */
 	public init(broker: ServiceBroker, service: Service) {
 		this.broker = broker;
 		this.service = service;
 		this.logger = this.broker.logger;
-		const entityFromService = this.service.schema.model;
-		const entityArray: EntitySchema<Entity>[] = [];
+		// const entityFromService: { entities: any; entitiesTs: any } = this.service.schema.model;
+		// const entityArray: EntitySchema<Entity>[] = [];
 		has(this.opts, 'entities')
 			? (this._entity = [...this.opts.entities])
-			: isArray(entityFromService)
-			? (entityFromService.forEach((entity) => {
-					const isValid = !!entity.constructor;
-					if (!isValid) {
-						new Errors.MoleculerServerError(
-							'Invalid model. It should be a mikro-orm entity',
-						);
-					}
-					entityArray.push(entity);
-			  }),
-			  (this._entity = entityArray))
-			: !isUndefined(entityFromService) && !!entityFromService.constructor
-			? (this._entity = entityFromService)
-			: new Errors.MoleculerServerError('Invalid model. It should be a mikro-orm entity');
+			: // May possibly use later if model attribute is needed
+			  // : isArray(entityFromService.entitiesTs)
+			  // ? (entityFromService.entitiesTs.forEach((entity) => {
+			  // 		const isValid = !!entity.constructor;
+			  // 		if (!isValid) {
+			  // 			new Errors.MoleculerServerError(
+			  // 				'Invalid model. It should be a mikro-orm entity',
+			  // 			);
+			  // 		}
+			  // 		entityArray.push(entity);
+			  //   }),
+			  //   ((this._entity = entityArray),
+			  //   (this.opts.entities = entityFromService.entities),
+			  //   (this.opts.entities = entityFromService.entitiesTs)))
+			  // : !isUndefined(entityFromService) && !!entityFromService.constructor
+			  // ? (this._entity = entityFromService.entitiesTs)
+			  new Errors.MoleculerServerError(
+					'Invalid or missing model. It should be a mikro-orm entity, path or array of paths',
+			  );
 	}
 
 	/**
@@ -486,7 +491,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * It will be called in `broker.stop()` and is used internally.
 	 * @methods
 	 * @public
-	 * @returns {Promise}
+	 * @returns {Promise<void>}
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async disconnect(): Promise<void> {
@@ -521,7 +526,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @methods
 	 * @param {Object | Object[]} entityOrEntities - record(s) to create
 	 * @param {Object?} options - Optional create options
-	 * @returns {Promise<Object | Object[]>>}
+	 * @returns {Promise<Object | Object[]>}
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async create<T extends Entity>(
@@ -584,11 +589,9 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Create one or many new entities.
 	 *
 	 * @methods
-	 *
-	 * @param {Object?} entityOrEntities - entity or entities to create.
+	 * @param {Object | Object[]} entityOrEntities - entity or entities to create.
 	 * @param {Object?} options - Insert options.
-	 *
-	 * @returns {Object|Object[]} Saved entity(ies).
+	 * @returns {Object | Object[]} Saved entity(ies).
 	 */
 	public async insert<T extends Entity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
@@ -599,19 +602,19 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Update an entity by ID
+	 *
 	 * @methods
-	 * @param {Context} ctx - request context
 	 * @param {any} id - ID of record to be updated
 	 * @param {Object} update - Object with update data
 	 * @param {Object} options - Object with update options
-	 * @returns {Promise} - Updated record
+	 * @returns {Promise<T>} - Updated record
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async updateById<T extends Entity>(
 		id: any,
 		update: EntityData<T>,
 		options?: UpdateOptions<T>,
-	): Promise<any> {
+	): Promise<T> {
 		this.logger!.debug(`Updating entity by ID '${id}' with ${JSON.stringify(update)}`);
 		const transformId: any = this.beforeQueryTransformID(id);
 		const entity = await this['_nativeUpdate']({ [transformId]: id }, update, options)
@@ -630,12 +633,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					error,
 				);
 			});
-		return this.afterRetrieveTransformID(entity, this.service.settings.idField);
+		return this.afterRetrieveTransformID(entity, this.service.settings.idField) as T;
 	}
 
 	/**
 	 * Remove an entity by ID
 	 *
+	 * @methods
 	 * @param {any} id
 	 * @param {DeleteOptions<T>} options
 	 * @returns {Promise<number>}
@@ -660,6 +664,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	/**
 	 * Remove many entities by ID
 	 *
+	 * @methods
 	 * @param {any[]} id
 	 * @param {DeleteOptions<T>} options
 	 * @returns {Promise<number>}
@@ -684,8 +689,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Count number of matching documents in the db to a query.
 	 *
 	 * @methods
-	 * @param {Object} options - count options
-	 * @param {Object?} query - query options
+	 * @param {Object} where - query options
+	 * @param {Object?} options - count options
 	 * @returns {Promise<number>}
 	 * @memberof MikroORMDbAdapter
 	 */
@@ -709,8 +714,9 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Returns array of entities or single entity depending on your query.
 	 *
 	 * @methods
-	 * @param {Context<{where, options?}>} ctx - request context
-	 * @returns {Promise<Loaded<T, P>|Loaded<T, P>[]}
+	 * @param {Object} where - query options
+	 * @param {Object?} options - find options
+	 * @returns {Promise<T | T[]>}
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async find<T extends Entity, P extends string>(
@@ -733,7 +739,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * If entity was not found in the database - returns null.
 	 *
 	 * @methods
-	 * @param {Context<{where, options?}>} ctx - request context
+	 * @param {Object} where - query options
+	 * @param {Object?} options - find options
 	 * @returns {Promise<T | undefined>}
 	 * @memberof MikroORMDbAdapter
 	 */
@@ -755,13 +762,11 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Gets item by id(s). No find options can be provided
+	 *
 	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {Partial<T>} key - primary db id column name
 	 * @param {string | number | string[] | number[]} id - id(s) of entity
 	 * @returns {Promise<T | undefined>}
 	 * @memberof MikroORMDbAdapter
-	 *
 	 */
 	public async findById<T extends Entity>(
 		id: string | number | string[] | number[],
@@ -782,12 +787,9 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Populates entity(ies) by id(s) of another record.
 	 *
 	 * @methods
-	 *
 	 * @param {Context} ctx - Context instance.
 	 * @param {Object?} params - Parameters.
-	 *
 	 * @returns {Object|Array<Object>} Found entity(ies).
-	 *
 	 * @throws {EntityNotFoundError} - 404 Entity not found
 	 */
 	public getPopulations(ctx: Context, params?: any): object | object[] {
@@ -846,6 +848,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * List entities from db using filters and pagination results.
+	 *
 	 * @methods
 	 * @param {Context} ctx - Context instance.
 	 * @param {ListParams<Object>?} params - Optional parameters.
@@ -916,6 +919,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Transforms user defined idField into expected db id field name.
+	 *
 	 * @methods
 	 * @param {Object} entity - Record to be saved
 	 * @param {String} idField - user defined service idField
@@ -947,6 +951,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Transforms db field name into user defined idField service property
+	 *
 	 * @methods
 	 * @param {Object} entity = Record retrieved from db
 	 * @param {String} idField - user defined service idField
@@ -975,6 +980,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Encode ID of entity.
+	 *
 	 * @methods
 	 * @param {any} id
 	 * @returns {any}
@@ -997,6 +1003,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Convert mongodb ObjectId to string.
+	 *
 	 * @methods
 	 * @param {any} id
 	 * @returns {any}
@@ -1008,6 +1015,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Transform user defined idField service property into the expected id field of db.
+	 *
 	 * @methods
 	 * @param {any} idField - user defined service idField
 	 * @returns {Object} - Record to be saved
@@ -1028,6 +1036,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Decode ID of entity.
+	 *
 	 * @methods
 	 * @param {any} id
 	 * @returns {any}
@@ -1041,6 +1050,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Transform the fetched documents by converting id to user defind idField,
 	 * filtering the fields according to the fields service property,
 	 * and populating the document with the relations specified in the populate service property.
+	 *
 	 * @methods
 	 * @param {Context} ctx - Context of the request
 	 * @param {Object} 	params - Params of the request
@@ -1170,6 +1180,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Call before entity lifecycle events
+	 *
 	 * @methods
 	 * @param {String} type
 	 * @param {Object} entity
@@ -1187,6 +1198,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Clear the cache & call entity lifecycle events
+	 *
 	 * @methods
 	 * @param {String} type
 	 * @param {Object|Array<Object>|Number} json
@@ -1205,6 +1217,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Clear cached entities
+	 *
 	 * @methods
 	 * @returns {Promise}
 	 * @memberof MikroORMDbAdapter
@@ -1219,6 +1232,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Filter fields in the entity object
+	 *
 	 * @methods
 	 * @param {Object} doc - Record to be filtered.
 	 * @param {Array<String>} fields - Filter properties of model.
@@ -1243,6 +1257,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Exclude fields in the entity object
+	 *
 	 * @methods
 	 * @param {Object} doc - Record to be filtered.
 	 * @param {Array<String>} fields - Exclude properties of model.
@@ -1261,6 +1276,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Used when relations between records between different databases can't be done.
 	 * Populates the retreived record by calling service action with the `id` of the relation.
 	 * Does not update related document at this time
+	 *
 	 * @methods
 	 * @param {Context} ctx - Request context
 	 * @param {Array|Object} docs - Records to be populated
@@ -1381,6 +1397,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	/**
 	 * Validate an entity by validator.
 	 * Uses the `entityValidator` setting. If no validator function is supplied, returns record.
+	 *
 	 * @methods
 	 * @param {Object} entity - Record to be validated
 	 * @returns {Promise} - Validated record or unvalitaded record if no validator function is supplied.
@@ -1401,6 +1418,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Convert DB entity to JSON object
+	 *
 	 * @methods
 	 * @param {any} entity - Record to be converted
 	 * @returns {Object} - JSON object of record
@@ -1412,6 +1430,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 	/**
 	 * Authorize the required field list. Remove fields which does not exist in the `this.service.settings.fields`
+	 *
 	 * @methods
 	 * @param {Array} askedFields - List of fields to be authorized
 	 * @returns {Array} - Authorized list of fields
@@ -1457,7 +1476,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * Sanitize context parameters at `find` action.
 	 *
 	 * @methods
-	 *
 	 * @param {Context} ctx - Request context
 	 * @param {Object} params - Request parameters
 	 * @returns {Object} - Sanitized parameters
@@ -1576,7 +1594,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 			},
 
-			// Store adapter (NeDB adapter is the default)
+			// db adapter (NeDB adapter is the default)
 			adapter: null,
 
 			/**
@@ -1625,7 +1643,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @actions
 				 * @cached
-				 *
 				 * @param {String|Array<String>} populate - Populated fields.
 				 * @param {String|Array<String>} fields - Fields filter.
 				 * @param {String|Array<String>} excludeFields - List of excluded fields.
@@ -1635,7 +1652,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @param {String?} search - Search text.
 				 * @param {String|Array<String>} searchFields - Fields for searching.
 				 * @param {Object?} query - Query object. Passes to adapter.
-				 *
 				 * @returns {Array<Object>} List of found entities.
 				 */
 				find: {
@@ -1721,11 +1737,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @actions
 				 * @cached
-				 *
-				 * @param {String?} search - Search text.
-				 * @param {String|Array<String>} searchFields - Fields list for searching.
+				 * @param {Object?} options - Optional settings.
 				 * @param {Object?} query - Query object. Passes to adapter.
-				 *
 				 * @returns {Number} Count of found entities.
 				 */
 				count: {
@@ -1749,7 +1762,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @actions
 				 * @cached
-				 *
 				 * @param {String|Array<String>} populate - Populated fields.
 				 * @param {String|Array<String>} fields - Fields filter.
 				 * @param {String|Array<String>} excludeFields - List of excluded fields.
@@ -1759,7 +1771,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @param {String?} search - Search text.
 				 * @param {String|Array<String>} searchFields - Fields for searching.
 				 * @param {Object?} query - Query object. Passes to adapter.
-				 *
 				 * @returns {Object} List of found entities and count with pagination info.
 				 */
 				list: {
@@ -1829,9 +1840,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @actions
 				 *
 				 * @param {Object | Array<Object>} entityOrEntities - Entity to save.
-				 * @param {Object} options - Optional MongoDb insert options.
-				 *
-				 * @returns {Object} Saved entity.
+				 * @param {Object?} options - Optional create options.
+				 * @returns {Object | Array<Object>} Saved entit(y/ies).
 				 */
 				create: {
 					rest: 'POST /',
@@ -1839,7 +1849,9 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						entityOrEntities: [{ type: 'object' }, { type: 'array' }],
 						options: { type: 'object', optional: true },
 					},
-					handler(ctx: Context): any {
+					handler(
+						ctx: Context<{ entityOrEntities: object | any[] }, { options?: object }>,
+					): any {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -1849,14 +1861,12 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Create many new entities.
+				 * Insert many new entities.
 				 *
 				 * @actions
-				 *
-				 * @param {Object?} entity - Entity to save.
-				 * @param {Array<Object>?} entities - Entities to save.
-				 *
-				 * @returns {Object|Array<Object>} Saved entity(ies).
+				 * @param {Object | Array<Object>} entityOrEntities - Entity to insert.
+				 * @param {Object?} options - Optional insert options.
+				 * @returns {Object|Array<Object>} Inserted entity(ies).
 				 */
 				insert: {
 					rest: 'PUT /',
@@ -1864,7 +1874,9 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						entityOrEntities: [{ type: 'object' }, { type: 'array' }],
 						options: { type: 'object', optional: true },
 					},
-					handler(ctx: Context): any {
+					handler(
+						ctx: Context<{ entityOrEntities: object | any[] }, { options?: object }>,
+					): any {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -1883,9 +1895,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @param {String|Array<String>} fields - Fields filter.
 				 * @param {String|Array<String>} excludeFields - List of excluded fields.
 				 * @param {Boolean?} mapping - Convert the returned `Array` to `Object` where the key is the value of `id`.
-				 *
 				 * @returns {Object|Array<Object>} Found entity(ies).
-				 *
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
 				get: {
@@ -1926,10 +1936,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * > After update, clear the cache & call lifecycle events.
 				 *
 				 * @actions
-				 *
 				 * @param {any} id - ID of entity.
 				 * @returns {Object} Updated entity.
-				 *
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
 				update: {
@@ -1937,7 +1945,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					params: {
 						id: { type: 'any' },
 					},
-					handler(ctx: Context): any {
+					handler(ctx: Context<{ id: any }>): any {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -1949,10 +1957,9 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * Remove an entity by ID.
 				 *
 				 * @actions
-				 *
 				 * @param {any} id - ID of entity.
-				 * @returns {Number} Count of removed entities.
-				 *
+				 * @param {Object?} options - optional remove options
+				 * @returns {Object} removed entity.
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
 				remove: {
@@ -1961,7 +1968,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						id: { type: 'any' },
 						options: { type: 'object', optional: true },
 					},
-					handler(ctx: Context): any {
+					handler(ctx: Context<{ id: any }, { options?: object }>): any {
 						// @ts-ignore
 						return this._remove(ctx, ctx.params);
 					},
@@ -2038,8 +2045,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					return resolve().then(() =>
 						// @ts-ignore
 						this.adapter.findById(
-							// ctx,
-							// key,
 							// @ts-ignore
 							decoding ? this.adapter.decodeID(id) : id,
 						),
@@ -2199,7 +2204,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @param {Context} ctx - Context instance.
 				 * @param {Object?} params - Parameters.
 				 *
-				 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>} List of found entities.
+				 * @returns {Promise<T | T[]>} List of found entities.
 				 */
 				async _find<T extends object, P extends string>(
 					ctx: Context<
@@ -2482,7 +2487,20 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						.then(async (docs) => await this.transformDocuments(ctx, ctx.params, docs))
 						.then(
 							async (json) =>
-								await this.entityChanged('created', json, ctx).then(() => json),
+								await this.entityChanged('created', json, ctx)
+									.then(() => json)
+									.catch((err: any) => {
+										// @ts-ignore
+										this.logger.error(
+											`Failed to send entity changed event: ${err}`,
+										);
+										return new Errors.MoleculerServerError(
+											'Failed to send entity changed event',
+											500,
+											'FAILED_TO_CREATE_EVENT',
+											err,
+										);
+									}),
 						)
 						.catch((err: any) => {
 							// @ts-ignore
@@ -2593,10 +2611,10 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					let id: any;
 					// @ts-ignore
 					return this.beforeEntityChange('update', params, ctx)
-						.then((update: any) => {
+						.then(async (update: any) => {
 							let sets: { [key: string]: any } = {};
 							// Convert fields from params to "$set" update object
-							Object.keys(update).forEach((prop) => {
+							for (const prop of Object.keys(update)) {
 								// @ts-ignore
 								if (prop === 'id' || prop === this.settings.idField) {
 									// @ts-ignore
@@ -2604,7 +2622,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 								} else {
 									sets[prop] = update[prop];
 								}
-							});
+							}
 							// @ts-ignore
 							if (this.settings.useDotNotation) {
 								sets = flatten(sets, { safe: true });
@@ -2622,7 +2640,20 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						.then(async (doc: any) => this.transformDocuments(ctx, params, doc))
 						.then((json: any) =>
 							// @ts-ignore
-							this.entityChanged('updated', json, ctx).then(() => json),
+							this.entityChanged('updated', json, ctx)
+								.then(() => json)
+								.catch((err: any) => {
+									// @ts-ignore
+									this.logger.error(
+										`Failed to send entity changed event: ${err}`,
+									);
+									return new Errors.MoleculerServerError(
+										'Failed to send entity changed event',
+										500,
+										'FAILED_TO_CREATE_EVENT',
+										err,
+									);
+								}),
 						)
 						.catch((error: any) => {
 							// @ts-ignore

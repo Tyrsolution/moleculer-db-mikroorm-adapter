@@ -16,7 +16,7 @@
 
 - **Active Record, Data Mapping, or use a combination of the two. It's your choice**<br>
   This adapter supports Active Record by default. When a connection is created with one or more entities, these entities are mapped to the connection for ease of use. No need to use ```getRepository(<Entity>)``` to query additional tables in a database, just use ```connection.<Entity>``` for additional entities and ```connection``` for the primary entity of the service. The primary entity is based on the entity being the first entity of the data source entities array. Any entity methods added within the entity are surfaced and mapped as well.
-  Repository and EntityManager are mappes as well if the preference is data mapping or additional features of Mikro-ORM needed or required.
+  Repository and EntityManager are mapped as well if the preference is data mapping or additional features of Mikro-ORM needed or required.
 
 - **Connection Manager**<br>
   Manage your database connections with ease using the connection manager. The connection manager is a per service conneciton manager, so each service can hold and manage its own connections to databases. Configured connections start and stop with the service, so no need to close connections on service restart or collisions with connection names from other services.
