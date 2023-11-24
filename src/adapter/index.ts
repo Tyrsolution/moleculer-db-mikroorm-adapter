@@ -194,7 +194,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		/**
 		 * create connection using this.opts & initialize db connection
 		 */
-		const orm: any = await this.connectionManager.create(this.opts);
+		const orm: any = await this.connectionManager.create(this.opts, logger);
 		logger.info(`${this.service.name} has connected to ${orm.name} database`);
 
 		/**

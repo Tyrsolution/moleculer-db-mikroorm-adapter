@@ -6,15 +6,9 @@
  * MIT Licensed
  */
 import { isArray } from 'lodash';
-/* import {
-	DataSource,
-	DataSourceOptions,
-	ConnectionNotFoundError,
-	AlreadyHasActiveConnectionError,
-} from 'typeorm'; */
-import { Errors } from 'moleculer';
+import Moleculer, { Errors } from 'moleculer';
 import { resolve } from 'bluebird';
-import { MikroORM, MikroORMOptions } from '@mikro-orm/core';
+import { MikroORM } from '@mikro-orm/core';
 import MikroORMDbAdapter from '../../adapter';
 
 /**
@@ -144,10 +138,23 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	public async create(options: MikroORMOptions, newConnection: boolean = false): Promise<any> {
+	public async create(
+		options: any,
+		// options: MikroORMOptions<any>,
+		logger: Moleculer.LoggerInstance,
+		newConnection: boolean = false,
+	): Promise<any> {
+		if (!logger) {
+			throw new Errors.MoleculerServerError(
+				'Logger not provided',
+				500,
+				'ERR_LOGGER_NOT_FOUND',
+			);
+		}
 		// check if such connection is already registered
 		const existConnection = this._connectionMap.get(options.name ?? 'default');
 		const throwError = () => {
+			logger.debug(`Connection already exists for: ${options.name ?? 'default'}`);
 			const error = new Error(`Connection already exists for: ${options.name ?? 'default'}`);
 			throw new Errors.MoleculerServerError(
 				error.message,
@@ -155,11 +162,52 @@ export default class ConnectionManager {
 				'ERR_CONNECTION_ALREADY_EXIST',
 			);
 		};
+		const logDriver = () =>
+			options.driver
+				? logger.debug(
+						`Driver for connection: ${options.name ?? 'default'} is ${options.driver}`,
+				  )
+				: logger.debug(`Options.driver not present, Setting driver to ${options.type}`);
+
+		logger.debug(`Checking if driver in options object is present: ${options.driver ?? null}`);
+		if (!options.driver) {
+			switch (options.type) {
+				case 'better-sqlite':
+					logDriver();
+					options.driver = (await import('@mikro-orm/better-sqlite')).BetterSqliteDriver;
+					break;
+				case 'mongo':
+					logDriver();
+					options.driver = (await import('@mikro-orm/mongodb')).MongoDriver;
+					break;
+				case 'mysql':
+					logDriver();
+					options.driver = (await import('@mikro-orm/mysql')).MySqlDriver;
+					break;
+				case 'mariadb':
+					logDriver();
+					options.driver = (await import('@mikro-orm/mariadb')).MariaDbDriver;
+					break;
+				case 'postgresql':
+					logDriver();
+					options.driver = (await import('@mikro-orm/postgresql')).PostgreSqlDriver;
+					break;
+				case 'sqlite':
+					logDriver();
+					options.driver = (await import('@mikro-orm/sqlite')).SqliteDriver;
+					break;
+
+				default:
+					break;
+			}
+		}
 
 		let activeConneciton: any;
 		if (newConnection && !existConnection) {
+			logger.debug(`Creating new connection for: ${options.name ?? 'default'}`);
 			return new MikroORMDbAdapter(options);
 		} else {
+			logger.debug(`Checking if connection exists for: ${options.name ?? 'default'}`);
 			const dbConnection: MikroORM = existConnection?.isConnected()
 				? throwError()
 				: await MikroORM.init(options).catch((err: any) => {
@@ -169,24 +217,39 @@ export default class ConnectionManager {
 							'ERR_CONNECTION_CREATE',
 						);
 				  });
-
-			await dbConnection.isConnected().then((isConnected: boolean) => {
-				if (!isConnected) {
+			logger.debug(`Connection created for: ${options.name ?? 'default'}`);
+			await dbConnection
+				.isConnected()
+				.then((isConnected: boolean) => {
+					if (!isConnected) {
+						logger.debug(`Connection ${options.name ?? 'default'} not connected`);
+						throw new Errors.MoleculerServerError(
+							`Connection ${options.name ?? 'default'} not found`,
+							500,
+							'ERR_CONNECTION_NOT_FOUND',
+						);
+					}
+					logger.debug(`Connection ${options.name ?? 'default'} connected`);
+					dbConnection.getSchemaGenerator().updateSchema();
+				})
+				.catch((err: any) => {
 					throw new Errors.MoleculerServerError(
-						`Connection ${options.name ?? 'default'} not found`,
+						err.message,
 						500,
-						'ERR_CONNECTION_NOT_FOUND',
+						'ERR_CONNECTION_CREATE',
 					);
-				}
-				dbConnection.getSchemaGenerator().updateSchema();
-			});
+				});
 
+			logger.debug(`Setting active connection for: ${options.name ?? 'default'}`);
 			activeConneciton = dbConnection;
+			logger.debug(`Adding ${options.name ?? 'default'} to connection`);
 			activeConneciton.name = options.name ?? 'default';
 
 			// create a new connection
+			logger.debug(`Adding ${options.name ?? 'default'} to connection map`);
 			this._connectionMap.set(activeConneciton.name, activeConneciton);
 		}
+		logger.debug(`Returning active connection for: ${options.name ?? 'default'}`);
 		return resolve(activeConneciton);
 	}
 }

@@ -1,4 +1,5 @@
-import { MikroORM, MikroORMOptions } from '@mikro-orm/core';
+import { MikroORM } from '@mikro-orm/core';
+import Moleculer from 'moleculer';
 
 declare class ConnectionManager {
 	/**
@@ -70,5 +71,9 @@ declare class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	public create(options: MikroORMOptions, newConnection?: boolean): Promise<any>;
+	public create(
+		options: any,
+		logger: Moleculer.LoggerInstance,
+		newConnection?: boolean,
+	): Promise<any>;
 }
