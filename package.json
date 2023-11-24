@@ -38,6 +38,7 @@
 	"author": "Tyr Solutions",
 	"license": "MIT",
 	"devDependencies": {
+		"@andrewleedham/rollup-plugin-auto-external": "^3.0.0",
 		"@ourparentcenter/moleculer-decorators-extended": "^2.1.0",
 		"@rollup/plugin-auto-install": "^3.0.5",
 		"@rollup/plugin-commonjs": "^25.0.7",
@@ -80,7 +81,6 @@
 		"prettier": "^3.1.0",
 		"rimraf": "^5.0.5",
 		"rollup": "^4.5.2",
-		"rollup-plugin-auto-external": "^2.0.0",
 		"rollup-plugin-dts-bundle": "^1.0.0",
 		"rollup-plugin-esbuild": "^6.1.0",
 		"rollup-plugin-node-builtins": "^2.1.2",
@@ -104,6 +104,17 @@
 		"flat": "^6.0.1",
 		"lodash": "^4.17.21",
 		"moleculer": "^0.14.32",
+		"reflect-metadata": "^0.1.13"
+	},
+	"peerDependencies": {
+		"@mikro-orm/better-sqlite": "^5.9.4",
+		"@mikro-orm/core": "^5.9.4",
+		"@mikro-orm/knex": "^5.9.4",
+		"@mikro-orm/mariadb": "^5.9.4",
+		"@mikro-orm/mongodb": "^5.9.4",
+		"@mikro-orm/mysql": "^5.9.4",
+		"@mikro-orm/postgresql": "^5.9.4",
+		"@mikro-orm/sqlite": "^5.9.4",
 		"reflect-metadata": "^0.1.13"
 	},
 	"jest": {

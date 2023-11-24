@@ -1,10 +1,10 @@
 import esbuild from 'rollup-plugin-esbuild';
-import autoExternal from 'rollup-plugin-auto-external';
-import pkg from './package.json' assert { type: 'json' };
+import autoExternal from '@andrewleedham/rollup-plugin-auto-external';
 import dtsBundle from 'rollup-plugin-dts-bundle';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import { uglify } from 'rollup-plugin-uglify';
+import pkg from './package.json' assert { type: 'json' };
 
 export default () => {
 	const mainInput = {
@@ -21,7 +21,7 @@ export default () => {
 			commonjs(),
 			autoExternal({
 				builtins: true,
-				peerDependencies: true,
+				peerDependencies: false,
 				dependencies: true,
 			}),
 			esbuild({
@@ -32,7 +32,7 @@ export default () => {
 				bundle: {
 					name: '@tyrsolutions/moleculer-db-mikroorm-adapter',
 					main: 'src/types/mikroormadapter.d.ts',
-					out: '../../dist/index.d.ts', // can be omitted, 'typings.d.ts' - default output.
+					out: '../../dist/index.d.ts', // Can be omitted, 'typings.d.ts' - default output.
 
 					// Other 'dts-bundle' package options.
 				},

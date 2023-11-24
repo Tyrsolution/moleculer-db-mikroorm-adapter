@@ -48,6 +48,9 @@ importers:
         specifier: ^0.1.13
         version: 0.1.13
     devDependencies:
+      '@andrewleedham/rollup-plugin-auto-external':
+        specifier: ^3.0.0
+        version: 3.0.0(rollup@4.5.2)
       '@ourparentcenter/moleculer-decorators-extended':
         specifier: ^2.1.0
         version: 2.1.0
@@ -174,9 +177,6 @@ importers:
       rollup:
         specifier: ^4.5.2
         version: 4.5.2
-      rollup-plugin-auto-external:
-        specifier: ^2.0.0
-        version: 2.0.0(rollup@4.5.2)
       rollup-plugin-dts-bundle:
         specifier: ^1.0.0
         version: 1.0.0
@@ -258,6 +258,19 @@ packages:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.3
       '@jridgewell/trace-mapping': 0.3.19
+    dev: true
+
+  /@andrewleedham/rollup-plugin-auto-external@3.0.0(rollup@4.5.2):
+    resolution: {integrity: sha512-BoKKtWWGYm4yPfJ3KI4iqpSpJ8HsQMh9DBwqN8CLOxtv38/nUlpM9SBEoS52YrPBv/GE3VoCIUWMKXlmC3lKYw==}
+    engines: {node: '>=6'}
+    peerDependencies:
+      rollup: '>=0.45.2'
+    dependencies:
+      builtins: 2.0.1
+      read-pkg: 3.0.0
+      rollup: 4.5.2
+      safe-resolve: 1.0.0
+      semver: 5.7.2
     dev: true
 
   /@babel/code-frame@7.22.13:
@@ -6015,6 +6028,7 @@ packages:
 
   /ip@2.0.0:
     resolution: {integrity: sha512-WKa+XuLG1A1R0UWhl2+1XQSi+fZWMsYKffMZTTYsiZaUD8k2yDAj5atimTUD2TZkyCkNEeYE5NhFZmupOGtjYQ==}
+    requiresBuild: true
     dev: false
 
   /ipaddr.js@2.1.0:
@@ -9796,19 +9810,6 @@ packages:
       inherits: 2.0.4
     dev: true
 
-  /rollup-plugin-auto-external@2.0.0(rollup@4.5.2):
-    resolution: {integrity: sha512-HQM3ZkZYfSam1uoZtAB9sK26EiAsfs1phrkf91c/YX+S07wugyRXSigBxrIwiLr5EPPilKYmoMxsrnlGBsXnuQ==}
-    engines: {node: '>=6'}
-    peerDependencies:
-      rollup: '>=0.45.2'
-    dependencies:
-      builtins: 2.0.1
-      read-pkg: 3.0.0
-      rollup: 4.5.2
-      safe-resolve: 1.0.0
-      semver: 5.7.2
-    dev: true
-
   /rollup-plugin-dts-bundle@1.0.0:
     resolution: {integrity: sha512-6z2S7n4b7i6Twe0kWEeqe9NG4v9Nk64eo5t3mR2WWGYBeQC8M/NcMkLgerqB5m5wbKHSlOTDmwszAJebVKUsfA==}
     engines: {node: '>=10'}
@@ -10154,6 +10155,7 @@ packages:
   /smart-buffer@4.2.0:
     resolution: {integrity: sha512-94hK0Hh8rPqQl2xXc3HsaBoOXKV20MToPkcXvwbISWLEs+64sBq5kFgn2kJDHb1Pry9yrP0dxrCI9RRci7RXKg==}
     engines: {node: '>= 6.0.0', npm: '>= 3.0.0'}
+    requiresBuild: true
     dev: false
 
   /socks-proxy-agent@6.2.1:
