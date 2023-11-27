@@ -351,6 +351,7 @@ const flatten = async (target: unknown, options: FlattenOptions | undefined) =>
  * }
  * ```
  */
+// eslint-disable-next-line no-shadow
 export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	// #region Properties, constructor, init, connect, disconnect
 	// Dynamic property key
