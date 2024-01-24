@@ -418,24 +418,24 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		has(this.opts, 'entities')
 			? (this._entity = [...this.opts.entities])
 			: // May possibly use later if model attribute is needed
-			  // : isArray(entityFromService.entitiesTs)
-			  // ? (entityFromService.entitiesTs.forEach((entity) => {
-			  // 		const isValid = !!entity.constructor;
-			  // 		if (!isValid) {
-			  // 			new Errors.MoleculerServerError(
-			  // 				'Invalid model. It should be a mikro-orm entity',
-			  // 			);
-			  // 		}
-			  // 		entityArray.push(entity);
-			  //   }),
-			  //   ((this._entity = entityArray),
-			  //   (this.opts.entities = entityFromService.entities),
-			  //   (this.opts.entities = entityFromService.entitiesTs)))
-			  // : !isUndefined(entityFromService) && !!entityFromService.constructor
-			  // ? (this._entity = entityFromService.entitiesTs)
-			  new Errors.MoleculerServerError(
+				// : isArray(entityFromService.entitiesTs)
+				// ? (entityFromService.entitiesTs.forEach((entity) => {
+				// 		const isValid = !!entity.constructor;
+				// 		if (!isValid) {
+				// 			new Errors.MoleculerServerError(
+				// 				'Invalid model. It should be a mikro-orm entity',
+				// 			);
+				// 		}
+				// 		entityArray.push(entity);
+				//   }),
+				//   ((this._entity = entityArray),
+				//   (this.opts.entities = entityFromService.entities),
+				//   (this.opts.entities = entityFromService.entitiesTs)))
+				// : !isUndefined(entityFromService) && !!entityFromService.constructor
+				// ? (this._entity = entityFromService.entitiesTs)
+				new Errors.MoleculerServerError(
 					'Invalid or missing model. It should be a mikro-orm entity, path or array of paths',
-			  );
+				);
 	}
 
 	/**
@@ -665,7 +665,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					index === 0
 						? /* ? (this[repositoryMethod] = dbRepository[repositoryMethod])
 						: (methodsToAdd[repositoryMethod] = dbRepository[repositoryMethod]); */
-						  (this[`_${repositoryMethod}`] = dbRepository[repositoryMethod])
+							(this[`_${repositoryMethod}`] = dbRepository[repositoryMethod])
 						: (methodsToAdd[`_${repositoryMethod}`] = dbRepository[repositoryMethod]);
 				}
 			});
@@ -675,8 +675,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			index !== 0
 				? (logger.debug(
 						`Adding methods to ${entityName} adapter: ${JSON.stringify(methodsToAdd)}`,
-				  ),
-				  (this[entityName] = {
+					),
+					(this[entityName] = {
 						...methodsToAdd,
 						insert: this.insert,
 						updateById: this.updateById,
@@ -709,7 +709,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 						sanitizeParams: this.sanitizeParams,
 						broker: this.broker,
 						service: this.service,
-				  }))
+					}))
 				: null;
 		});
 		logger.debug('Adding forked entity manager to adapter...');
@@ -1195,7 +1195,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				? '_id'
 				: find(this.manager?.getMetadata()['metadata'][this.entityName!].props, {
 						primary: true,
-				  }).name;
+					}).name;
 
 		if (idField !== dbIDField && entity[idField] !== undefined) {
 			newEntity = JSON.parse(
@@ -1288,7 +1288,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				? '_id'
 				: find(this.manager?.getMetadata()['metadata'][this.entityName!].props, {
 						primary: true,
-				  }).name;
+					}).name;
 		if (idField !== dbIDField) {
 			return dbIDField;
 		}
@@ -1381,8 +1381,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 						this.logger!.debug('Fields found in params..');
 						const fields = isString(params.fields)
 							? // Compatibility with < 0.4
-							  /* istanbul ignore next */
-							  params.fields.split(/\s+/)
+								/* istanbul ignore next */
+								params.fields.split(/\s+/)
 							: params.fields;
 						// Authorize the requested fields
 						this.logger!.debug('Authorizing fields..');
