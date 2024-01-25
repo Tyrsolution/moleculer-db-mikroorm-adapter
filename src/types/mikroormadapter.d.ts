@@ -57,7 +57,7 @@ import {
 	IdentityMap,
 	IntegerType,
 	InvalidFieldNameException,
-	JavaScriptMetadataProvider,
+	// JavaScriptMetadataProvider,
 	JsonType,
 	LockWaitTimeoutException,
 	MediumIntType,
@@ -119,7 +119,7 @@ import {
 	QueryOperator,
 	QueryOrder,
 	QueryOrderNumeric,
-	ReferenceType,
+	// ReferenceType,
 	AfterCreate,
 	AfterDelete,
 	AfterUpdate,
@@ -146,9 +146,9 @@ import {
 	PrimaryKey,
 	Property,
 	SerializedPrimaryKey,
-	Subscriber,
+	// Subscriber,
 	Unique,
-	UseRequestContext,
+	// UseRequestContext,
 	assign,
 	compareArrays,
 	compareBooleans,
@@ -156,7 +156,7 @@ import {
 	compareObjects,
 	defineConfig,
 	equals,
-	expr,
+	// expr,
 	parseJsonSafe,
 	ref,
 	rel,
@@ -196,7 +196,7 @@ import {
 	ISeedManager,
 	IWrappedEntity,
 	IndexOptions,
-	InitOptions,
+	// InitOptions,
 	LoadCountOptions,
 	LoadReferenceOptions,
 	LoadedCollection,
@@ -222,7 +222,7 @@ import {
 	PrimaryKeyOptions,
 	QueryResult,
 	ReferenceOptions,
-	RegisterManagedOptions,
+	// RegisterManagedOptions,
 	SerializeOptions,
 	SerializedPrimaryKeyOptions,
 	Settings,
@@ -258,7 +258,7 @@ import {
 	FilterQuery,
 	GetRepository,
 	IPrimaryKey,
-	IdentifiedReference,
+	// IdentifiedReference,
 	IsUnknown,
 	Loaded,
 	LoggerNamespace,
@@ -282,6 +282,7 @@ import {
 	RequiredEntityData,
 	SeederOptions,
 	Transaction,
+	EntityManagerType,
 } from '@mikro-orm/core';
 import { AutoPath } from '@mikro-orm/core/typings';
 import { Context, Service, ServiceBroker, ServiceSchema } from 'moleculer';
@@ -339,7 +340,7 @@ export {
 	IdentityMap,
 	IntegerType,
 	InvalidFieldNameException,
-	JavaScriptMetadataProvider,
+	// JavaScriptMetadataProvider,
 	JsonType,
 	LockWaitTimeoutException,
 	MediumIntType,
@@ -401,7 +402,7 @@ export {
 	QueryOperator,
 	QueryOrder,
 	QueryOrderNumeric,
-	ReferenceType,
+	// ReferenceType,
 	AfterCreate,
 	AfterDelete,
 	AfterUpdate,
@@ -428,9 +429,9 @@ export {
 	PrimaryKey,
 	Property,
 	SerializedPrimaryKey,
-	Subscriber,
+	// Subscriber,
 	Unique,
-	UseRequestContext,
+	// UseRequestContext,
 	assign,
 	compareArrays,
 	compareBooleans,
@@ -438,7 +439,7 @@ export {
 	compareObjects,
 	defineConfig,
 	equals,
-	expr,
+	// expr,
 	parseJsonSafe,
 	ref,
 	rel,
@@ -478,7 +479,7 @@ export {
 	ISeedManager,
 	IWrappedEntity,
 	IndexOptions,
-	InitOptions,
+	// InitOptions,
 	LoadCountOptions,
 	LoadReferenceOptions,
 	LoadedCollection,
@@ -504,7 +505,7 @@ export {
 	PrimaryKeyOptions,
 	QueryResult,
 	ReferenceOptions,
-	RegisterManagedOptions,
+	// RegisterManagedOptions,
 	SerializeOptions,
 	SerializedPrimaryKeyOptions,
 	Settings,
@@ -540,7 +541,7 @@ export {
 	FilterQuery,
 	GetRepository,
 	IPrimaryKey,
-	IdentifiedReference,
+	// IdentifiedReference,
 	IsUnknown,
 	Loaded,
 	LoggerNamespace,
@@ -938,7 +939,8 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: true;
 		},
-	): Ref<Entity, PK>;
+	): Ref<PK>;
+	// ): Ref<Entity, PK>;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
@@ -1417,7 +1419,7 @@ export default class MikroORMDbAdapter<
 	 * @param {MikroORMOptions} opts
 	 *
 	 */
-	public constructor(options: Options<D> | Configuration<D>);
+	public constructor(options: any);
 	// #region Micro-ORM orm methods
 	/**
 	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
@@ -1707,7 +1709,8 @@ export default class MikroORMDbAdapter<
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: true;
 		},
-	): Ref<Entity, PK>;
+	): Ref<PK>;
+	// ): Ref<Entity, PK>;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */

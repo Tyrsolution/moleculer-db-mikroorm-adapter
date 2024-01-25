@@ -200,6 +200,7 @@ export default class ConnectionManager {
 				default:
 					break;
 			}
+			delete options.type;
 		}
 
 		let activeConneciton: any;
