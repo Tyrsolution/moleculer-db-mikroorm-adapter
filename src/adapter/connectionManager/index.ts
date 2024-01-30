@@ -117,14 +117,14 @@ export default class ConnectionManager {
 					.then(() => true)
 					.catch(() => false)
 			: isArray(name)
-			? name.map(async (connectionName: string) =>
-					this._connectionMap.has(connectionName)
-						? await closeConnection(connectionName)
-								.then(() => true)
-								.catch(() => false)
-						: throwError(connectionName),
-			  )
-			: throwError(name);
+				? name.map(async (connectionName: string) =>
+						this._connectionMap.has(connectionName)
+							? await closeConnection(connectionName)
+									.then(() => true)
+									.catch(() => false)
+							: throwError(connectionName),
+					)
+				: throwError(name);
 	}
 
 	/**
@@ -166,7 +166,7 @@ export default class ConnectionManager {
 			options.driver
 				? logger.debug(
 						`Driver for connection: ${options.name ?? 'default'} is ${options.driver}`,
-				  )
+					)
 				: logger.debug(`Options.driver not present, Setting driver to ${options.type}`);
 
 		logger.debug(`Checking if driver in options object is present: ${options.driver ?? null}`);
@@ -216,7 +216,7 @@ export default class ConnectionManager {
 							500,
 							'ERR_CONNECTION_CREATE',
 						);
-				  });
+					});
 			logger.debug(`Connection created for: ${options.name ?? 'default'}`);
 			await dbConnection
 				.isConnected()
