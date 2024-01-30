@@ -528,7 +528,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				| typeof MYSQLEntityRepository
 				| typeof MariaEntityRepository
 				| typeof PostEntityRepository
-				| typeof SqliteEntityRepository = orm.em.fork().getRepository(entity as any).em;
+				| typeof SqliteEntityRepository = orm.em.fork().getRepository(entity as any);
 			const dbManager:
 				| typeof BSEntityManager
 				| typeof MongoEntityManager
@@ -548,6 +548,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			const entityMethodNames = entityMethods(entity);
 
 			logger.warn('dbRepository: ', dbRepository);
+			logger.warn('dbManager: ', dbManager);
 			logger.warn('repositoryEntityManager: ', repositoryEntityManager);
 
 			logger.debug(
@@ -595,13 +596,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				'clear',
 				'clearCache',
 				'commit',
-				'count',
-				'create',
-				'find',
-				'findAndCount',
-				'findOne',
-				'findOneOrFail',
-				'flush',
+				// 'count',
+				// 'create',
+				// 'find',
+				// 'findAndCount',
+				// 'findOne',
+				// 'findOneOrFail',
+				// 'flush',
 				'fork',
 				'getComparator',
 				'getConnection',
@@ -626,13 +627,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				// 'nativeDelete',
 				// 'nativeInsert',
 				// 'nativeUpdate',
-				'persist',
-				'persistAndFlush',
+				// 'persist',
+				// 'persistAndFlush',
 				// 'persistLater',
 				// 'populate',
 				'refresh',
-				'remove',
-				'removeAndFlush',
+				// 'remove',
+				// 'removeAndFlush',
 				// 'removeLater',
 				'repo',
 				'resetTransactionContext',
@@ -662,6 +663,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				 * or add additional methods to methods object
 				 */
 				if (repositoryEntityManager[entityManagerMethod]) {
+					// if (has(repositoryEntityManager, entityManagerMethod)) {
 					logger.debug(`Adding entity manager method to adapter: ${entityManagerMethod}`);
 					index === 0
 						? (this[`_${entityManagerMethod}`] =
@@ -681,13 +683,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				 */
 				'assign',
 				'canPopulate',
-				// 'count',
-				// 'create',
-				// 'find',
-				// 'findAll',
-				// 'findAndCount',
-				// 'findOne',
-				// 'findOneOrFail',
+				'count',
+				'create',
+				'find',
+				'findAll',
+				'findAndCount',
+				'findOne',
+				'findOneOrFail',
 				// 'flush',
 				'getEntityManager',
 				'getReference',
@@ -722,6 +724,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				 * or add additional methods to methods object
 				 */
 				if (dbRepository[repositoryMethod]) {
+					// if (has(dbRepository, repositoryMethod)) {
 					logger.debug(`Adding repository method to adapter: ${repositoryMethod}`);
 					index === 0
 						? /* ? (this[repositoryMethod] = dbRepository[repositoryMethod])
@@ -783,7 +786,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		 * set entity manager on this.adapter
 		 */
 		// this._em = orm.em;
-		this._em = orm.em.fork();
+		// this._em = orm.em.fork();
+		this.em = orm.em.fork();
 		logger.debug('Adding forked repository to adapter...');
 		/**
 		 * set repository on this.adapter
@@ -874,7 +878,8 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 						forEach(docs, async (doc: T) => {
 							console.log('doc to persist: ', doc);
 							try {
-								await this['manager']!.fork().persist(doc).flush();
+								await this.em.persist(doc).flush();
+								// await this['manager']!.fork().persist(doc).flush();
 								docsArray.push(doc);
 							} catch (error) {
 								this.logger!.error(`Failed to create entity: ${error}`);
@@ -900,7 +905,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			: await resolve(this['_create'](entityOrEntities, options))
 					.then(async (doc: any) => {
 						this.logger!.debug('Persiting created entity and flushing');
-						await this['_persistAndFlush'](doc);
+						await this.em.persistAndFlush(doc);
 						return doc;
 					})
 					.catch((err: any) => {
