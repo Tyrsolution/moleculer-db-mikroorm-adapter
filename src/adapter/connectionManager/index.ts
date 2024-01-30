@@ -8,8 +8,36 @@
 import { isArray } from 'lodash';
 import Moleculer, { Errors } from 'moleculer';
 import { resolve } from 'bluebird';
-import { MikroORM } from '@mikro-orm/core';
+// import { MikroORM } from '@mikro-orm/core';
 import MikroORMDbAdapter from '../../adapter';
+import {
+	BSMikroORM,
+	MongoMikroORM,
+	MYSQLMikroORM,
+	MariaMicroORM,
+	PostMikroORM,
+	SqliteMiroOrm,
+	BSEntityManager,
+	MongoEntityManager,
+	MYSQLEntityManager,
+	MariaEntityManager,
+	PostEntityManager,
+	SqliteEntityManager,
+	BSEntityRepository,
+	MongoEntityRepository,
+	MYSQLEntityRepository,
+	MariaEntityRepository,
+	PostEntityRepository,
+	SqliteEntityRepository,
+	defineBSConfig,
+	defineMongoConfig,
+	defineMYSQLConfig,
+	defineMariaConfig,
+	definePostConfig,
+	defineSqliteConfig,
+	initORM,
+	Services,
+} from './connection';
 
 /**
  * ConnectionManager is used to store and manage multiple orm connections.
@@ -24,7 +52,10 @@ export default class ConnectionManager {
 	/**
 	 * Internal lookup to quickly get from a connection name to the Connection object.
 	 */
-	private readonly _connectionMap: Map<string, MikroORM> = new Map();
+	private readonly _connectionMap: Map<
+		string,
+		BSMikroORM | MongoMikroORM | MYSQLMikroORM | MariaMicroORM | PostMikroORM | SqliteMiroOrm
+	> = new Map();
 	/**
 	 * List of connections registered in this connection manager.
 	 *
@@ -33,7 +64,14 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	public get connections(): MikroORM[] {
+	public get connections(): (
+		| BSMikroORM
+		| MongoMikroORM
+		| MYSQLMikroORM
+		| MariaMicroORM
+		| PostMikroORM
+		| SqliteMiroOrm
+	)[] {
 		return Array.from(this._connectionMap.values());
 	}
 
@@ -65,7 +103,9 @@ export default class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	public get(name: string = 'default'): MikroORM {
+	public get(
+		name: string = 'default',
+	): BSMikroORM | MongoMikroORM | MYSQLMikroORM | MariaMicroORM | PostMikroORM | SqliteMiroOrm {
 		const connection = this._connectionMap.get(name);
 		if (!connection) {
 			throw new Error(`Connection ${name} not found`);
@@ -108,7 +148,13 @@ export default class ConnectionManager {
 			throw new Error(`Connection ${connectionName} not found`);
 		};
 		const closeConnection = async (connectionName: string) => {
-			const connection: MikroORM = this._connectionMap.get(connectionName)!;
+			const connection:
+				| BSMikroORM
+				| MongoMikroORM
+				| MYSQLMikroORM
+				| MariaMicroORM
+				| PostMikroORM
+				| SqliteMiroOrm = this._connectionMap.get(connectionName)!;
 			await connection.close();
 			this.remove(connectionName);
 		};
@@ -117,14 +163,14 @@ export default class ConnectionManager {
 					.then(() => true)
 					.catch(() => false)
 			: isArray(name)
-			? name.map(async (connectionName: string) =>
-					this._connectionMap.has(connectionName)
-						? await closeConnection(connectionName)
-								.then(() => true)
-								.catch(() => false)
-						: throwError(connectionName),
-			  )
-			: throwError(name);
+				? name.map(async (connectionName: string) =>
+						this._connectionMap.has(connectionName)
+							? await closeConnection(connectionName)
+									.then(() => true)
+									.catch(() => false)
+							: throwError(connectionName),
+					)
+				: throwError(name);
 	}
 
 	/**
@@ -151,87 +197,107 @@ export default class ConnectionManager {
 				'ERR_LOGGER_NOT_FOUND',
 			);
 		}
+		const connectionOptions = { ...options };
+		// delete connectionOptions.type;
 		// check if such connection is already registered
-		const existConnection = this._connectionMap.get(options.name ?? 'default');
+		const existConnection = this._connectionMap.get(connectionOptions.name ?? 'default');
 		const throwError = () => {
-			logger.debug(`Connection already exists for: ${options.name ?? 'default'}`);
-			const error = new Error(`Connection already exists for: ${options.name ?? 'default'}`);
+			logger.debug(`Connection already exists for: ${connectionOptions.name ?? 'default'}`);
+			const error = new Error(
+				`Connection already exists for: ${connectionOptions.name ?? 'default'}`,
+			);
 			throw new Errors.MoleculerServerError(
 				error.message,
 				500,
 				'ERR_CONNECTION_ALREADY_EXIST',
 			);
 		};
-		const logDriver = () =>
-			options.driver
+		/* const logDriver = () =>
+			connectionOptions.driver
 				? logger.debug(
-						`Driver for connection: ${options.name ?? 'default'} is ${options.driver}`,
-				  )
+						`Driver for connection: ${connectionOptions.name ?? 'default'} is ${connectionOptions.driver}`,
+					)
 				: logger.debug(`Options.driver not present, Setting driver to ${options.type}`);
 
-		logger.debug(`Checking if driver in options object is present: ${options.driver ?? null}`);
-		if (!options.driver) {
+		logger.debug(
+			`Checking if driver in options object is present: ${connectionOptions.driver ?? null}`,
+		); */
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		/* let MikroORMDriverObject: any;
+		if (!connectionOptions.driver) {
 			switch (options.type) {
 				case 'better-sqlite':
 					logDriver();
-					options.driver = (await import('@mikro-orm/better-sqlite')).BetterSqliteDriver;
+					MikroORMDriverObject = BSMikroORM;
 					break;
 				case 'mongo':
 					logDriver();
-					options.driver = (await import('@mikro-orm/mongodb')).MongoDriver;
+					MikroORMDriverObject = MongoMikroORM;
 					break;
 				case 'mysql':
 					logDriver();
-					options.driver = (await import('@mikro-orm/mysql')).MySqlDriver;
+					MikroORMDriverObject = MYSQLMikroORM;
 					break;
 				case 'mariadb':
 					logDriver();
-					options.driver = (await import('@mikro-orm/mariadb')).MariaDbDriver;
+					MikroORMDriverObject = MariaMicroORM;
 					break;
 				case 'postgresql':
 					logDriver();
-					options.driver = (await import('@mikro-orm/postgresql')).PostgreSqlDriver;
+					MikroORMDriverObject = PostMikroORM;
 					break;
 				case 'sqlite':
 					logDriver();
-					options.driver = (await import('@mikro-orm/sqlite')).SqliteDriver;
+					MikroORMDriverObject = SqliteMiroOrm;
 					break;
 
 				default:
 					break;
 			}
-			delete options.type;
-		}
+		} */
 
+		// console.warn('MikroORM driver export: ', await MikroORMDriverObject);
 		let activeConneciton: any;
+		let entityManager: any;
 		if (newConnection && !existConnection) {
-			logger.debug(`Creating new connection for: ${options.name ?? 'default'}`);
-			return new MikroORMDbAdapter(options);
+			logger.debug(`Creating new connection for: ${connectionOptions.name ?? 'default'}`);
+			return new MikroORMDbAdapter(connectionOptions);
 		} else {
-			logger.debug(`Checking if connection exists for: ${options.name ?? 'default'}`);
-			const dbConnection: MikroORM = existConnection?.isConnected()
+			logger.debug(
+				`Checking if connection exists for: ${connectionOptions.name ?? 'default'}`,
+			);
+			const dbConnection: any = existConnection?.isConnected()
 				? throwError()
-				: await MikroORM.init(options).catch((err: any) => {
+				: await initORM(connectionOptions).catch((err: any) => {
 						throw new Errors.MoleculerServerError(
 							err.message,
 							500,
 							'ERR_CONNECTION_CREATE',
 						);
-				  });
-			logger.debug(`Connection created for: ${options.name ?? 'default'}`);
-			await dbConnection
+					});
+			/* : await MikroORMDriverObject.init(connectionOptions).catch((err: any) => {
+						throw new Errors.MoleculerServerError(
+							err.message,
+							500,
+							'ERR_CONNECTION_CREATE',
+						);
+					}); */
+			logger.debug(`Connection created for: ${connectionOptions.name ?? 'default'}`);
+			await dbConnection.orm
 				.isConnected()
 				.then((isConnected: boolean) => {
 					if (!isConnected) {
-						logger.debug(`Connection ${options.name ?? 'default'} not connected`);
+						logger.debug(
+							`Connection ${connectionOptions.name ?? 'default'} not connected`,
+						);
 						throw new Errors.MoleculerServerError(
-							`Connection ${options.name ?? 'default'} not found`,
+							`Connection ${connectionOptions.name ?? 'default'} not found`,
 							500,
 							'ERR_CONNECTION_NOT_FOUND',
 						);
 					}
-					logger.debug(`Connection ${options.name ?? 'default'} connected`);
-					dbConnection.getSchemaGenerator().updateSchema();
+					logger.debug(`Connection ${connectionOptions.name ?? 'default'} connected`);
+					dbConnection.orm.getSchemaGenerator().updateSchema();
 				})
 				.catch((err: any) => {
 					throw new Errors.MoleculerServerError(
@@ -241,16 +307,42 @@ export default class ConnectionManager {
 					);
 				});
 
-			logger.debug(`Setting active connection for: ${options.name ?? 'default'}`);
-			activeConneciton = dbConnection;
-			logger.debug(`Adding ${options.name ?? 'default'} to connection`);
-			activeConneciton.name = options.name ?? 'default';
-
+			logger.debug(`Setting active connection for: ${connectionOptions.name ?? 'default'}`);
+			activeConneciton = dbConnection.orm;
+			logger.debug(`Adding ${connectionOptions.name ?? 'default'} to connection`);
+			activeConneciton.name = connectionOptions.name ?? 'default';
+			activeConneciton.driverType = connectionOptions.type;
+			entityManager = dbConnection.em;
 			// create a new connection
-			logger.debug(`Adding ${options.name ?? 'default'} to connection map`);
+			logger.debug(`Adding ${activeConneciton.name ?? 'default'} to connection map`);
 			this._connectionMap.set(activeConneciton.name, activeConneciton);
 		}
-		logger.debug(`Returning active connection for: ${options.name ?? 'default'}`);
-		return resolve(activeConneciton);
+		logger.debug(`Returning active connection for: ${activeConneciton.name ?? 'default'}`);
+		return {
+			// orm: activeConneciton.orm,
+			orm: activeConneciton,
+			// orm: resolve(activeConneciton.orm),
+			// em: activeConneciton.em,
+			em: entityManager,
+			// em: resolve(activeConneciton.em),
+			BSEntityManager,
+			MongoEntityManager,
+			MYSQLEntityManager,
+			MariaEntityManager,
+			PostEntityManager,
+			SqliteEntityManager,
+			BSEntityRepository,
+			MongoEntityRepository,
+			MYSQLEntityRepository,
+			MariaEntityRepository,
+			PostEntityRepository,
+			SqliteEntityRepository,
+			defineBSConfig,
+			defineMongoConfig,
+			defineMYSQLConfig,
+			defineMariaConfig,
+			definePostConfig,
+			defineSqliteConfig,
+		};
 	}
 }

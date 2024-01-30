@@ -675,15 +675,18 @@ export interface ListParams {
 	transaction?: boolean;
 }
 
-export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver = IDatabaseDriver> {
+export interface DbAdapter<
+	MKRMEntity extends AnyEntity,
+	D extends IDatabaseDriver = IDatabaseDriver,
+> {
 	// #region DbAdapter properties
 	[key: string]: any;
 	/**
-	 * Mikro-ORM Entity Repository
+	 * Mikro-ORM MKRMEntity Repository
 	 */
-	repository: EntityRepository<Entity> | undefined;
+	repository: EntityRepository<MKRMEntity> | undefined;
 	/**
-	 * Mikro-ORM Entity Manager
+	 * Mikro-ORM MKRMEntity Manager
 	 */
 	manager: D[typeof EntityManagerType] & EntityManager;
 	/**
@@ -715,7 +718,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	/**
 	 * Gets the `EntityMetadata` instance when provided with the `entityName` parameter.
 	 */
-	getMetadata(entityName: EntityName<Entity>): EntityMetadata<Entity>;
+	getMetadata(entityName: EntityName<MKRMEntity>): EntityMetadata<MKRMEntity>;
 	discoverEntities(): Promise<void>;
 	/**
 	 * Allows dynamically discovering new entity by reference, handy for testing schema diffing.
@@ -783,18 +786,18 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * Finds first entity matching your `where` query.
 	 */
 	_findOne<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOneOptions<Entity, P>,
-	): Promise<Loaded<Entity, P> | null>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOneOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P> | null>;
 	/**
 	 * Finds first entity matching your `where` query. If nothing found, it will throw an error.
 	 * You can override the factory for creating this method via `options.failHandler` locally
 	 * or via `Configuration.findOneOrFailHandler` globally.
 	 */
 	_findOneOrFail<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOneOrFailOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOneOrFailOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>>;
 	/**
 	 * Creates or updates the entity, based on whether it is already present in the database.
 	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
@@ -818,9 +821,9 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
 	_upsert(
-		entityOrData?: EntityData<Entity> | Entity,
-		options?: NativeInsertUpdateOptions<Entity>,
-	): Promise<Entity>;
+		entityOrData?: EntityData<MKRMEntity> | MKRMEntity,
+		options?: NativeInsertUpdateOptions<MKRMEntity>,
+	): Promise<MKRMEntity>;
 	/**
 	 * Creates or updates the entity, based on whether it is already present in the database.
 	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
@@ -847,30 +850,30 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
 	_upsertMany(
-		entitiesOrData?: EntityData<Entity>[] | Entity[],
-		options?: NativeInsertUpdateOptions<Entity>,
-	): Promise<Entity[]>;
+		entitiesOrData?: EntityData<MKRMEntity>[] | MKRMEntity[],
+		options?: NativeInsertUpdateOptions<MKRMEntity>,
+	): Promise<MKRMEntity[]>;
 	/**
 	 * Finds all entities matching your `where` query. You can pass additional options via the `options` parameter.
 	 */
 	_find<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>[]>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>[]>;
 	/**
 	 * Calls `em.find()` and `em.count()` with the same arguments (where applicable) and returns the results as tuple
 	 * where first element is the array of entities and the second is the count.
 	 */
 	_findAndCount<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOptions<Entity, P>,
-	): Promise<[Loaded<Entity, P>[], number]>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOptions<MKRMEntity, P>,
+	): Promise<[Loaded<MKRMEntity, P>[], number]>;
 	/**
 	 * Finds all entities of given type. You can pass additional options via the `options` parameter.
 	 */
 	_findAll<P extends string = never>(
-		options?: FindOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>[]>;
+		options?: FindOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>[]>;
 	/**
 	 * Marks entity for removal.
 	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
@@ -907,53 +910,56 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * Fires native insert query. Calling this has no side effects on the context (identity map).
 	 */
 	_nativeInsert(
-		data: Entity | EntityData<Entity>,
-		options?: NativeInsertUpdateOptions<Entity>,
-	): Promise<Primary<Entity>>;
+		data: MKRMEntity | EntityData<MKRMEntity>,
+		options?: NativeInsertUpdateOptions<MKRMEntity>,
+	): Promise<Primary<MKRMEntity>>;
 	/**
 	 * Fires native update query. Calling this has no side effects on the context (identity map).
 	 */
 	_nativeUpdate(
-		where: FilterQuery<Entity>,
-		data: EntityData<Entity>,
-		options?: UpdateOptions<Entity>,
+		where: FilterQuery<MKRMEntity>,
+		data: EntityData<MKRMEntity>,
+		options?: UpdateOptions<MKRMEntity>,
 	): Promise<number>;
 	/**
 	 * Fires native delete query. Calling this has no side effects on the context (identity map).
 	 */
-	_nativeDelete(where: FilterQuery<Entity>, options?: DeleteOptions<Entity>): Promise<number>;
+	_nativeDelete(
+		where: FilterQuery<MKRMEntity>,
+		options?: DeleteOptions<MKRMEntity>,
+	): Promise<number>;
 	/**
 	 * Maps raw database result to an entity and merges it to this EntityManager.
 	 */
 	_map(
-		result: EntityDictionary<Entity>,
+		result: EntityDictionary<MKRMEntity>,
 		options?: {
 			schema?: string;
 		},
-	): Entity;
+	): MKRMEntity;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	_getReference<PK extends keyof Entity>(
-		id: Primary<Entity>,
+	_getReference<PK extends keyof MKRMEntity>(
+		id: Primary<MKRMEntity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: true;
 		},
 	): Ref<PK>;
-	// ): Ref<Entity, PK>;
+	// ): Ref<MKRMEntity, PK>;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	_getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
+	_getReference(id: Primary<MKRMEntity> | Primary<MKRMEntity>[]): MKRMEntity;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
 	_getReference(
-		id: Primary<Entity>,
+		id: Primary<MKRMEntity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: false;
 		},
-	): Entity;
+	): MKRMEntity;
 	/**
 	 * Checks whether given property can be populated on the entity.
 	 */
@@ -962,10 +968,10 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * Loads specified relations in batch. This will execute one query for each relation, that will populate it on all of the specified entities.
 	 */
 	_populate<P extends string = never>(
-		entities: Entity | Entity[],
-		populate: AutoPath<Entity, P>[] | boolean,
-		options?: EntityLoaderOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>[]>;
+		entities: MKRMEntity | MKRMEntity[],
+		populate: AutoPath<MKRMEntity, P>[] | boolean,
+		options?: EntityLoaderOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>[]>;
 	/**
 	 * Creates new instance of given entity and populates it with given data.
 	 * The entity constructor will be used unless you provide `{ managed: true }` in the options parameter.
@@ -974,22 +980,22 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
 	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	_create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
+	_create<P = never>(data: RequiredEntityData<MKRMEntity>, options?: CreateOptions): MKRMEntity;
 	/**
 	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
-	_assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
+	_assign(entity: MKRMEntity, data: EntityData<MKRMEntity>, options?: AssignOptions): MKRMEntity;
 	/**
 	 * Merges given entity to this EntityManager so it becomes managed. You can force refreshing of existing entities
 	 * via second parameter. By default it will return already loaded entities without modifying them.
 	 */
-	_merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
+	_merge(data: MKRMEntity | EntityData<MKRMEntity>, options?: MergeOptions): MKRMEntity;
 	/**
 	 * Returns total number of entities matching your `where` query.
 	 */
 	_count<P extends string = never>(
-		where?: FilterQuery<Entity>,
-		options?: CountOptions<Entity, P>,
+		where?: FilterQuery<MKRMEntity>,
+		options?: CountOptions<MKRMEntity, P>,
 	): Promise<number>;
 	/**
 	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
@@ -1003,7 +1009,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * Returns the underlying EntityManager instance
 	 */
 	_getEntityManager(): EntityManager;
-	_validateRepositoryType(entities: Entity[] | Entity, method: string): void;
+	_validateRepositoryType(entities: MKRMEntity[] | MKRMEntity, method: string): void;
 	// #endregion MikroORM entityrepostory methods
 	// #region Moleculer-db methods
 	/** Moleculer-db methods */
@@ -1074,7 +1080,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise<number>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	count<T extends Entity, P extends string>(
+	count<T extends MKRMEntity, P extends string>(
 		where?: FilterQuery<T>,
 		options?: CountOptions<T, P>,
 	): Promise<number>;
@@ -1088,7 +1094,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise<Object | Object[]>>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	create<T extends Entity>(
+	create<T extends MKRMEntity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
 		options?: CreateOptions,
 	): Promise<T | T[]>;
@@ -1102,7 +1108,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 *
 	 * @returns {Object|Object[]} Saved entity(ies).
 	 */
-	insert<T extends Entity>(
+	insert<T extends MKRMEntity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
 		options?: CreateOptions,
 	): Promise<T | T[]>;
@@ -1116,7 +1122,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise} - Updated record
 	 * @memberof MikroORMDbAdapter
 	 */
-	updateById<T extends Entity>(
+	updateById<T extends MKRMEntity>(
 		id: any,
 		update: EntityData<T>,
 		options?: UpdateOptions<T>,
@@ -1129,7 +1135,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise<number>}
 	 * @memberof MemoryDbAdapter
 	 */
-	removeById<T extends Entity>(id: any, options?: DeleteOptions<T>): Promise<number>;
+	removeById<T extends MKRMEntity>(id: any, options?: DeleteOptions<T>): Promise<number>;
 	/**
 	 * Remove many entities by ID
 	 *
@@ -1138,7 +1144,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise<number>}
 	 * @memberof MemoryDbAdapter
 	 */
-	removeMany<T extends Entity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
+	removeMany<T extends MKRMEntity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
 	/**
 	 * Finds entities that match given find options.
 	 *
@@ -1148,7 +1154,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	find<T extends Entity, P extends string>(
+	find<T extends MKRMEntity, P extends string>(
 		where: FilterQuery<T>,
 		options?: FindOptions<T, P>,
 	): Promise<Loaded<T, P> | Loaded<T, P>[]>;
@@ -1176,7 +1182,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise<null | Loaded<T, P>>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	findOne<T extends Entity, P extends string>(
+	findOne<T extends MKRMEntity, P extends string>(
 		where: FilterQuery<T>,
 		options?: FindOneOptions<T, P>,
 	): Promise<null | Loaded<T, P>>;
@@ -1189,7 +1195,9 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @returns {Promise<T | undefined>}
 	 *
 	 */
-	findById<T extends Entity>(id: string | number | string[] | number[]): Promise<T | undefined>;
+	findById<T extends MKRMEntity>(
+		id: string | number | string[] | number[],
+	): Promise<T | undefined>;
 	/**
 	 * Populates entity(ies) by id(s) of another record.
 	 *
@@ -1200,7 +1208,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 *
 	 * @returns {Object|Array<Object>} Found entity(ies).
 	 *
-	 * @throws {EntityNotFoundError} - 404 Entity not found
+	 * @throws {EntityNotFoundError} - 404 MKRMEntity not found
 	 */
 	getPopulations(ctx: Context, params?: any): object | object[];
 	/**
@@ -1214,7 +1222,7 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 	 * @deprecated - use findById instead. It now supports multiple ids
 	 *
 	 */
-	findByIds<T extends Entity>(
+	findByIds<T extends MKRMEntity>(
 		ctx: Context,
 		key: string | undefined | null,
 		ids: any[],
@@ -1375,9 +1383,9 @@ export interface DbAdapter<Entity extends AnyEntity, D extends IDatabaseDriver =
 }
 
 export default class MikroORMDbAdapter<
-	Entity extends AnyEntity,
+	MKRMEntity extends AnyEntity,
 	D extends IDatabaseDriver = IDatabaseDriver,
-> implements DbAdapter<Entity>
+> implements DbAdapter<MKRMEntity>
 {
 	// #region MikroORMDbAdapter properties
 	[index: string]: any;
@@ -1404,11 +1412,11 @@ export default class MikroORMDbAdapter<
 	 * Grants access to the entity repository of the connection.
 	 * Called using this.adapter.repository
 	 * @static
-	 * @property {Repository<Entity>} repository
+	 * @property {Repository<MKRMEntity>} repository
 	 *
 	 * @properties
 	 */
-	public repository: EntityRepository<Entity> | undefined;
+	public repository: EntityRepository<MKRMEntity> | undefined;
 	public orm: MikroORM<D>;
 	private _entity;
 	// eslint-disable-next-line @typescript-eslint/naming-convention
@@ -1498,7 +1506,7 @@ export default class MikroORMDbAdapter<
 	/**
 	 * Gets the `EntityMetadata` instance when provided with the `entityName` parameter.
 	 */
-	public getMetadata(entityName: EntityName<Entity>): EntityMetadata<Entity>;
+	public getMetadata(entityName: EntityName<MKRMEntity>): EntityMetadata<MKRMEntity>;
 	public discoverEntities(): Promise<void>;
 	/**
 	 * Allows dynamically discovering new entity by reference, handy for testing schema diffing.
@@ -1550,18 +1558,18 @@ export default class MikroORMDbAdapter<
 	 * Finds first entity matching your `where` query.
 	 */
 	public _findOne<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOneOptions<Entity, P>,
-	): Promise<Loaded<Entity, P> | null>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOneOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P> | null>;
 	/**
 	 * Finds first entity matching your `where` query. If nothing found, it will throw an error.
 	 * You can override the factory for creating this method via `options.failHandler` locally
 	 * or via `Configuration.findOneOrFailHandler` globally.
 	 */
 	public _findOneOrFail<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOneOrFailOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOneOrFailOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>>;
 	/**
 	 * Creates or updates the entity, based on whether it is already present in the database.
 	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
@@ -1585,9 +1593,9 @@ export default class MikroORMDbAdapter<
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
 	public _upsert(
-		entityOrData?: EntityData<Entity> | Entity,
-		options?: NativeInsertUpdateOptions<Entity>,
-	): Promise<Entity>;
+		entityOrData?: EntityData<MKRMEntity> | MKRMEntity,
+		options?: NativeInsertUpdateOptions<MKRMEntity>,
+	): Promise<MKRMEntity>;
 	/**
 	 * Creates or updates the entity, based on whether it is already present in the database.
 	 * This method performs an `insert on conflict merge` query ensuring the database is in sync, returning a managed
@@ -1614,30 +1622,30 @@ export default class MikroORMDbAdapter<
 	 * If the entity is already present in current context, there won't be any queries - instead, the entity data will be assigned and an explicit `flush` will be required for those changes to be persisted.
 	 */
 	public _upsertMany(
-		entitiesOrData?: EntityData<Entity>[] | Entity[],
-		options?: NativeInsertUpdateOptions<Entity>,
-	): Promise<Entity[]>;
+		entitiesOrData?: EntityData<MKRMEntity>[] | MKRMEntity[],
+		options?: NativeInsertUpdateOptions<MKRMEntity>,
+	): Promise<MKRMEntity[]>;
 	/**
 	 * Finds all entities matching your `where` query. You can pass additional options via the `options` parameter.
 	 */
 	public _find<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>[]>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>[]>;
 	/**
 	 * Calls `em.find()` and `em.count()` with the same arguments (where applicable) and returns the results as tuple
 	 * where first element is the array of entities and the second is the count.
 	 */
 	public _findAndCount<P extends string = never>(
-		where: FilterQuery<Entity>,
-		options?: FindOptions<Entity, P>,
-	): Promise<[Loaded<Entity, P>[], number]>;
+		where: FilterQuery<MKRMEntity>,
+		options?: FindOptions<MKRMEntity, P>,
+	): Promise<[Loaded<MKRMEntity, P>[], number]>;
 	/**
 	 * Finds all entities of given type. You can pass additional options via the `options` parameter.
 	 */
 	public _findAll<P extends string = never>(
-		options?: FindOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>[]>;
+		options?: FindOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>[]>;
 	/**
 	 * Marks entity for removal.
 	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
@@ -1674,56 +1682,56 @@ export default class MikroORMDbAdapter<
 	 * Fires native insert query. Calling this has no side effects on the context (identity map).
 	 */
 	public _nativeInsert(
-		data: Entity | EntityData<Entity>,
-		options?: NativeInsertUpdateOptions<Entity>,
-	): Promise<Primary<Entity>>;
+		data: MKRMEntity | EntityData<MKRMEntity>,
+		options?: NativeInsertUpdateOptions<MKRMEntity>,
+	): Promise<Primary<MKRMEntity>>;
 	/**
 	 * Fires native update query. Calling this has no side effects on the context (identity map).
 	 */
 	public _nativeUpdate(
-		where: FilterQuery<Entity>,
-		data: EntityData<Entity>,
-		options?: UpdateOptions<Entity>,
+		where: FilterQuery<MKRMEntity>,
+		data: EntityData<MKRMEntity>,
+		options?: UpdateOptions<MKRMEntity>,
 	): Promise<number>;
 	/**
 	 * Fires native delete query. Calling this has no side effects on the context (identity map).
 	 */
 	public _nativeDelete(
-		where: FilterQuery<Entity>,
-		options?: DeleteOptions<Entity>,
+		where: FilterQuery<MKRMEntity>,
+		options?: DeleteOptions<MKRMEntity>,
 	): Promise<number>;
 	/**
 	 * Maps raw database result to an entity and merges it to this EntityManager.
 	 */
 	public _map(
-		result: EntityDictionary<Entity>,
+		result: EntityDictionary<MKRMEntity>,
 		options?: {
 			schema?: string;
 		},
-	): Entity;
+	): MKRMEntity;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	public _getReference<PK extends keyof Entity>(
-		id: Primary<Entity>,
+	public _getReference<PK extends keyof MKRMEntity>(
+		id: Primary<MKRMEntity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: true;
 		},
 	): Ref<PK>;
-	// ): Ref<Entity, PK>;
+	// ): Ref<MKRMEntity, PK>;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
-	public _getReference(id: Primary<Entity> | Primary<Entity>[]): Entity;
+	public _getReference(id: Primary<MKRMEntity> | Primary<MKRMEntity>[]): MKRMEntity;
 	/**
 	 * Gets a reference to the entity identified by the given type and identifier without actually loading it, if the entity is not yet loaded
 	 */
 	public _getReference(
-		id: Primary<Entity>,
+		id: Primary<MKRMEntity>,
 		options: Omit<GetReferenceOptions, 'wrapped'> & {
 			wrapped: false;
 		},
-	): Entity;
+	): MKRMEntity;
 	/**
 	 * Checks whether given property can be populated on the entity.
 	 */
@@ -1732,10 +1740,10 @@ export default class MikroORMDbAdapter<
 	 * Loads specified relations in batch. This will execute one query for each relation, that will populate it on all of the specified entities.
 	 */
 	public _populate<P extends string = never>(
-		entities: Entity | Entity[],
-		populate: AutoPath<Entity, P>[] | boolean,
-		options?: EntityLoaderOptions<Entity, P>,
-	): Promise<Loaded<Entity, P>[]>;
+		entities: MKRMEntity | MKRMEntity[],
+		populate: AutoPath<MKRMEntity, P>[] | boolean,
+		options?: EntityLoaderOptions<MKRMEntity, P>,
+	): Promise<Loaded<MKRMEntity, P>[]>;
 	/**
 	 * Creates new instance of given entity and populates it with given data.
 	 * The entity constructor will be used unless you provide `{ managed: true }` in the options parameter.
@@ -1744,22 +1752,29 @@ export default class MikroORMDbAdapter<
 	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
 	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	public _create<P = never>(data: RequiredEntityData<Entity>, options?: CreateOptions): Entity;
+	public _create<P = never>(
+		data: RequiredEntityData<MKRMEntity>,
+		options?: CreateOptions,
+	): MKRMEntity;
 	/**
 	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
-	public _assign(entity: Entity, data: EntityData<Entity>, options?: AssignOptions): Entity;
+	public _assign(
+		entity: MKRMEntity,
+		data: EntityData<MKRMEntity>,
+		options?: AssignOptions,
+	): MKRMEntity;
 	/**
 	 * Merges given entity to this EntityManager so it becomes managed. You can force refreshing of existing entities
 	 * via second parameter. By default it will return already loaded entities without modifying them.
 	 */
-	public _merge(data: Entity | EntityData<Entity>, options?: MergeOptions): Entity;
+	public _merge(data: MKRMEntity | EntityData<MKRMEntity>, options?: MergeOptions): MKRMEntity;
 	/**
 	 * Returns total number of entities matching your `where` query.
 	 */
 	public _count<P extends string = never>(
-		where?: FilterQuery<Entity>,
-		options?: CountOptions<Entity, P>,
+		where?: FilterQuery<MKRMEntity>,
+		options?: CountOptions<MKRMEntity, P>,
 	): Promise<number>;
 	/**
 	 * Returns the underlying EntityManager instance
@@ -1769,7 +1784,7 @@ export default class MikroORMDbAdapter<
 	 * Returns the underlying EntityManager instance
 	 */
 	public _getEntityManager(): EntityManager;
-	public _validateRepositoryType(entities: Entity[] | Entity, method: string): void;
+	public _validateRepositoryType(entities: MKRMEntity[] | MKRMEntity, method: string): void;
 	// #endregion MikroORM entityrepostory methods
 	// #region Moleculer-db methods
 	/** Moleculer-db methods */
@@ -1840,7 +1855,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<number>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public count<T extends Entity, P extends string>(
+	public count<T extends MKRMEntity, P extends string>(
 		where?: FilterQuery<T>,
 		options?: CountOptions<T, P>,
 	): Promise<number>;
@@ -1854,7 +1869,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<Object | Object[]>>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public create<T extends Entity>(
+	public create<T extends MKRMEntity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
 		options?: CreateOptions,
 	): Promise<T | T[]>;
@@ -1868,7 +1883,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @returns {Object|Object[]} Saved entity(ies).
 	 */
-	public insert<T extends Entity>(
+	public insert<T extends MKRMEntity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
 		options?: CreateOptions,
 	): Promise<T | T[]>;
@@ -1882,7 +1897,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise} - Updated record
 	 * @memberof MikroORMDbAdapter
 	 */
-	public updateById<T extends Entity>(
+	public updateById<T extends MKRMEntity>(
 		id: any,
 		update: EntityData<T>,
 		options?: UpdateOptions<T>,
@@ -1895,7 +1910,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<number>}
 	 * @memberof MemoryDbAdapter
 	 */
-	public removeById<T extends Entity>(id: any, options?: DeleteOptions<T>): Promise<number>;
+	public removeById<T extends MKRMEntity>(id: any, options?: DeleteOptions<T>): Promise<number>;
 	/**
 	 * Remove many entities by ID
 	 *
@@ -1904,7 +1919,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<number>}
 	 * @memberof MemoryDbAdapter
 	 */
-	public removeMany<T extends Entity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
+	public removeMany<T extends MKRMEntity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
 	/**
 	 * Finds entities that match given find options.
 	 *
@@ -1914,7 +1929,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public find<T extends Entity, P extends string>(
+	public find<T extends MKRMEntity, P extends string>(
 		where: FilterQuery<T>,
 		options?: FindOptions<T, P>,
 	): Promise<Loaded<T, P> | Loaded<T, P>[]>;
@@ -1942,7 +1957,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<null | Loaded<T, P>>}
 	 * @memberof MikroORMDbAdapter
 	 */
-	public findOne<T extends Entity, P extends string>(
+	public findOne<T extends MKRMEntity, P extends string>(
 		where: FilterQuery<T>,
 		options?: FindOneOptions<T, P>,
 	): Promise<null | Loaded<T, P>>;
@@ -1955,7 +1970,7 @@ export default class MikroORMDbAdapter<
 	 * @returns {Promise<T | undefined>}
 	 *
 	 */
-	public findById<T extends Entity>(
+	public findById<T extends MKRMEntity>(
 		id: string | number | string[] | number[],
 	): Promise<T | undefined>;
 	/**
@@ -1968,7 +1983,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @returns {Object|Array<Object>} Found entity(ies).
 	 *
-	 * @throws {EntityNotFoundError} - 404 Entity not found
+	 * @throws {EntityNotFoundError} - 404 MKRMEntity not found
 	 */
 	public getPopulations(ctx: Context, params?: any): object | object[];
 	/**
@@ -1982,7 +1997,7 @@ export default class MikroORMDbAdapter<
 	 * @deprecated - use findById instead. It now supports multiple ids
 	 *
 	 */
-	public findByIds<T extends Entity>(
+	public findByIds<T extends MKRMEntity>(
 		ctx: Context,
 		key: string | undefined | null,
 		ids: any[],

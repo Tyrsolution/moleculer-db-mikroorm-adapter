@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable dot-notation */
 /* eslint-disable no-underscore-dangle */
@@ -322,6 +323,14 @@ import { FlattenOptions } from 'flat';
 import { ListParams } from '../types/mikroormadapter';
 import { name, version, repository } from '../../package.json';
 import ConnectionManager from './connectionManager';
+import {
+	BSMikroORM,
+	MongoMikroORM,
+	MYSQLMikroORM,
+	MariaMicroORM,
+	PostMikroORM,
+	SqliteMiroOrm,
+} from './connectionManager/connection';
 const flatten = async (target: unknown, options: FlattenOptions | undefined) =>
 	import('flat').then(async (flat) => await flat.flatten(target, options));
 /* .catch((err) => {
@@ -385,7 +394,14 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 */
 	public repository: EntityRepository<Entity> | undefined;
 
-	public orm: MikroORM | undefined;
+	public orm:
+		| BSMikroORM
+		| MongoMikroORM
+		| MYSQLMikroORM
+		| MariaMicroORM
+		| PostMikroORM
+		| SqliteMiroOrm
+		| undefined;
 
 	public entityName: string | undefined;
 	public logger: moleculer.LoggerInstance | undefined;
@@ -455,7 +471,30 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		/**
 		 * create connection using this.opts & initialize db connection
 		 */
-		const orm: any = await this.connectionManager.create(this.opts, logger);
+		const {
+			orm,
+			// em,
+			BSEntityManager,
+			MongoEntityManager,
+			MYSQLEntityManager,
+			MariaEntityManager,
+			PostEntityManager,
+			SqliteEntityManager,
+			BSEntityRepository,
+			MongoEntityRepository,
+			MYSQLEntityRepository,
+			MariaEntityRepository,
+			PostEntityRepository,
+			SqliteEntityRepository,
+			// defineBSConfig,
+			// defineMongoConfig,
+			// defineMYSQLConfig,
+			// defineMariaConfig,
+			// definePostConfig,
+			// defineSqliteConfig,
+		} = await this.connectionManager.create(this.opts, logger);
+		// const orm: any = await this.connectionManager.create(this.opts, logger);
+		// @ts-ignore
 		logger.info(`${this.service.name} has connected to ${orm.name} database`);
 
 		/**
@@ -483,11 +522,33 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		 * under entity name this.adapter.entityName
 		 */
 		entityArrray.forEach((entity: AnyEntity, index: number) => {
-			const dbRepository: any = orm.em.fork().getRepository(entity);
-			const dbManager: EntityManager = orm.em.fork();
-			const repositoryEntityManager: any = dbRepository.getEntityManager();
+			const dbRepository:
+				| typeof BSEntityRepository
+				| typeof MongoEntityRepository
+				| typeof MYSQLEntityRepository
+				| typeof MariaEntityRepository
+				| typeof PostEntityRepository
+				| typeof SqliteEntityRepository = orm.em.fork().getRepository(entity as any).em;
+			const dbManager:
+				| typeof BSEntityManager
+				| typeof MongoEntityManager
+				| typeof MYSQLEntityManager
+				| typeof MariaEntityManager
+				| typeof PostEntityManager
+				| typeof SqliteEntityManager = orm.em.fork();
+			const repositoryEntityManager:
+				| typeof BSEntityManager
+				| typeof MongoEntityManager
+				| typeof MYSQLEntityManager
+				| typeof MariaEntityManager
+				| typeof PostEntityManager
+				| typeof SqliteEntityManager = dbRepository;
+			// | typeof SqliteEntityManager = dbRepository.getEntityManager();
 			const entityName = entity.name;
 			const entityMethodNames = entityMethods(entity);
+
+			logger.warn('dbRepository: ', dbRepository);
+			logger.warn('repositoryEntityManager: ', repositoryEntityManager);
 
 			logger.debug(
 				`Adding custom methods on entity to adapter: ${JSON.stringify(entityMethodNames)}`,
@@ -534,12 +595,12 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				'clear',
 				'clearCache',
 				'commit',
-				// 'count',
-				// 'create',
-				// 'find',
-				// 'findAndCount',
-				// 'findOne',
-				// 'findOneOrFail',
+				'count',
+				'create',
+				'find',
+				'findAndCount',
+				'findOne',
+				'findOneOrFail',
 				'flush',
 				'fork',
 				'getComparator',
@@ -620,13 +681,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				 */
 				'assign',
 				'canPopulate',
-				'count',
-				'create',
-				'find',
-				'findAll',
-				'findAndCount',
-				'findOne',
-				'findOneOrFail',
+				// 'count',
+				// 'create',
+				// 'find',
+				// 'findAll',
+				// 'findAndCount',
+				// 'findOne',
+				// 'findOneOrFail',
 				// 'flush',
 				'getEntityManager',
 				'getReference',
@@ -716,10 +777,12 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		/**
 		 * set entity manager on this.adapter
 		 */
+		// this.manager = orm.em;
 		this.manager = orm.em.fork();
 		/**
 		 * set entity manager on this.adapter
 		 */
+		// this._em = orm.em;
 		this._em = orm.em.fork();
 		logger.debug('Adding forked repository to adapter...');
 		/**
@@ -745,6 +808,11 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		 * needed for Mikro-ORM to work, method passthrough.
 		 */
 		this.getEntityManager = this._getEntityManager;
+		/* this.getContext = (connection = orm.em) => {
+			if (!connection.useContext) {
+				return connection;
+			}
+		}; */
 	}
 
 	/**

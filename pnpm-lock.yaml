@@ -103,8 +103,8 @@ importers:
         specifier: ^4.4.4
         version: 4.4.4
       dts-bundle-generator:
-        specifier: ^9.2.4
-        version: 9.2.4
+        specifier: ^9.2.5
+        version: 9.2.5
       esbuild:
         specifier: ^0.19.12
         version: 0.19.12
@@ -4027,8 +4027,8 @@ packages:
     engines: {node: '>=12'}
     dev: false
 
-  /dts-bundle-generator@9.2.4:
-    resolution: {integrity: sha512-DUwg9NqwB4Gu+dNXUGW9v/Rc+sxTYrIHsvByKCfu0KinAT6dvmAjM0W+CtecdFGhuT753z9aNm1JpVeIPGIZjw==}
+  /dts-bundle-generator@9.2.5:
+    resolution: {integrity: sha512-wXrQ62wphORY+ORXSwRNYoaGjzR1GjUwi+XCf/V0pg72IrHPY8aha3wDurcWtHTyMuE+m7XcgFWdm2m+WXn5tw==}
     engines: {node: '>=14.0.0'}
     hasBin: true
     dependencies:
