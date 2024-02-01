@@ -872,11 +872,11 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		return isArray(entityOrEntities)
 			? await resolve(entityOrEntities.map((entity: any) => this['_create'](entity, options)))
 					.then(async (docs: T[]) => {
-						console.log('docs: ', docs);
+						this.logger!.debug('Entities created: ', docs);
 						const docsArray: T[] = [];
-						this.logger!.debug('Attempting to Persist created entity and flush');
+						this.logger!.debug('Attempting to Persist created entities and flush');
 						forEach(docs, async (doc: T) => {
-							console.log('doc to persist: ', doc);
+							this.logger!.debug('Attempting to Persist created entity: ', doc);
 							try {
 								await this.em.persist(doc).flush();
 								// await this['manager']!.fork().persist(doc).flush();
@@ -904,7 +904,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					})
 			: await resolve(this['_create'](entityOrEntities, options))
 					.then(async (doc: any) => {
-						this.logger!.debug('Persiting created entity and flushing');
+						this.logger!.debug('Persiting created entity and flushing: ', doc);
 						await this.em.persistAndFlush(doc);
 						return doc;
 					})
@@ -1863,7 +1863,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			p.options = JSON.parse(p.options);
 		}
 
-		console.log('ctx.action.name', ctx.action.name);
 		if (ctx.action.name.endsWith('.list')) {
 			// Default `pageSize`
 			if (!p.pageSize) {
@@ -2657,9 +2656,12 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @returns {Object} Saved entity.
 				 */
 				_create<T extends object>(
-					ctx: Context<{ entityOrEntities: T | T[]; options?: CreateOptions }>,
+					// ctx: Context<{ entityOrEntities: T | T[]; options?: CreateOptions }>,
+					ctx: Context,
+					params: { entityOrEntities: T | T[]; options?: CreateOptions },
 				): any {
-					const { entityOrEntities, options } = ctx.params;
+					// const { entityOrEntities, options } = ctx.params;
+					const { entityOrEntities, options } = params;
 					return this.beforeEntityChange('create', entityOrEntities, ctx)
 						.then(async (entity: any) => {
 							// @ts-ignore
@@ -2685,7 +2687,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 							// @ts-ignore
 							this.logger.error(`Failed to create entity: ${err}`);
 							return new Errors.MoleculerServerError(
-								`Failed to create entity(s): ${entityOrEntities}`,
+								`Failed to create entity(s): ${JSON.stringify(entityOrEntities)}`,
 								500,
 								'FAILED_TO_CREATE_ENTITY',
 								err,

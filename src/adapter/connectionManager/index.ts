@@ -266,7 +266,7 @@ export default class ConnectionManager {
 			logger.debug(
 				`Checking if connection exists for: ${connectionOptions.name ?? 'default'}`,
 			);
-			const dbConnection: any = existConnection?.isConnected()
+			const dbConnection: Services | undefined = (await existConnection?.isConnected())
 				? throwError()
 				: await initORM(connectionOptions).catch((err: any) => {
 						throw new Errors.MoleculerServerError(
@@ -283,9 +283,9 @@ export default class ConnectionManager {
 						);
 					}); */
 			logger.debug(`Connection created for: ${connectionOptions.name ?? 'default'}`);
-			await dbConnection.orm
+			await dbConnection!.orm
 				.isConnected()
-				.then((isConnected: boolean) => {
+				.then(async (isConnected: boolean) => {
 					if (!isConnected) {
 						logger.debug(
 							`Connection ${connectionOptions.name ?? 'default'} not connected`,
@@ -297,7 +297,7 @@ export default class ConnectionManager {
 						);
 					}
 					logger.debug(`Connection ${connectionOptions.name ?? 'default'} connected`);
-					dbConnection.orm.getSchemaGenerator().updateSchema();
+					await dbConnection!.orm.getSchemaGenerator().updateSchema();
 				})
 				.catch((err: any) => {
 					throw new Errors.MoleculerServerError(
@@ -308,11 +308,11 @@ export default class ConnectionManager {
 				});
 
 			logger.debug(`Setting active connection for: ${connectionOptions.name ?? 'default'}`);
-			activeConneciton = dbConnection.orm;
+			activeConneciton = dbConnection!.orm;
 			logger.debug(`Adding ${connectionOptions.name ?? 'default'} to connection`);
 			activeConneciton.name = connectionOptions.name ?? 'default';
 			activeConneciton.driverType = connectionOptions.type;
-			entityManager = dbConnection.em;
+			entityManager = dbConnection!.em;
 			// create a new connection
 			logger.debug(`Adding ${activeConneciton.name ?? 'default'} to connection map`);
 			this._connectionMap.set(activeConneciton.name, activeConneciton);
