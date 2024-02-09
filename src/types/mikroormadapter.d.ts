@@ -286,8 +286,64 @@ import {
 } from '@mikro-orm/core';
 import { AutoPath } from '@mikro-orm/core/typings';
 import { Context, Service, ServiceBroker, ServiceSchema } from 'moleculer';
+import type {
+	MikroORMConnection,
+	MikroORMConnectionOptions,
+} from '../adapter/connectionManager/connection';
+import {
+	BSMikroORM,
+	MongoMikroORM,
+	MYSQLMikroORM,
+	MariaMicroORM,
+	PostMikroORM,
+	SqliteMiroOrm,
+	BSEntityManager,
+	MongoEntityManager,
+	MYSQLEntityManager,
+	MariaEntityManager,
+	PostEntityManager,
+	SqliteEntityManager,
+	BSEntityRepository,
+	MongoEntityRepository,
+	MYSQLEntityRepository,
+	MariaEntityRepository,
+	PostEntityRepository,
+	SqliteEntityRepository,
+	defineBSConfig,
+	defineMongoConfig,
+	defineMYSQLConfig,
+	defineMariaConfig,
+	definePostConfig,
+	defineSqliteConfig,
+} from '../adapter/connectionManager/connection';
 import { ConnectionManager } from './connectionManager';
-
+export type { MikroORMConnection, MikroORMConnectionOptions };
+export {
+	BSMikroORM,
+	MongoMikroORM,
+	MYSQLMikroORM,
+	MariaMicroORM,
+	PostMikroORM,
+	SqliteMiroOrm,
+	BSEntityManager,
+	MongoEntityManager,
+	MYSQLEntityManager,
+	MariaEntityManager,
+	PostEntityManager,
+	SqliteEntityManager,
+	BSEntityRepository,
+	MongoEntityRepository,
+	MYSQLEntityRepository,
+	MariaEntityRepository,
+	PostEntityRepository,
+	SqliteEntityRepository,
+	defineBSConfig,
+	defineMongoConfig,
+	defineMYSQLConfig,
+	defineMariaConfig,
+	definePostConfig,
+	defineSqliteConfig,
+};
 export {
 	AbstractNamingStrategy,
 	AbstractSchemaGenerator,
