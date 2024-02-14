@@ -378,6 +378,8 @@ const flatten = async (target: unknown, options: FlattenOptions | undefined) =>
  *    entities: [TypeProduct]
  * }
  * ```
+ *
+ * @description This class provides methods for connecting to a database using MikroORM.
  */
 // eslint-disable-next-line no-shadow
 export default class MikroORMDbAdapter<Entity extends AnyEntity> {
@@ -430,11 +432,18 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Initialize adapter.
-	 * It will be called in `broker.start()` and is used internally.
+	 * Initializes the service with the provided broker and service.
+	 * Sets the broker, service, and logger properties of the current object.
+	 * Checks if the 'entities' option is provided in the options.
+	 * If not, it throws an error indicating that the model is invalid or missing.
+	 *
 	 * @methods
-	 * @param {ServiceBroker} broker - Moleculer broker instance
-	 * @param {Service} service - Moleculer service instance
+	 * @param {ServiceBroker} broker - The broker that the service will use for logging and other broker-related operations.
+	 * @param {Service} service - The service that the adapter will be initialized for.
+	 *
+	 * @throws {Errors.MoleculerServerError} - If the 'entities' option is not provided in the options, an error is thrown
+	 * indicating that the model is invalid or missing.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public init(broker: ServiceBroker, service: Service) {
@@ -467,13 +476,45 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Connects to database.
-	 * It will be called in `broker.start()` and is used internally.
+	 * Asynchronously connects to the database and initializes the adapter.
+	 *
+	 * This method does the following:
+	 * - Creates a new connection manager and assigns it to the `connectionManager` property.
+	 * - Creates a new ORM and entity manager using the connection manager.
+	 * - Logs the name of the service and the database it has connected to.
+	 * - Converts the `_entity` property to an array if it's not already an array.
+	 * - Defines a function `entityMethods` that returns an array of method names of an object.
+	 * - Logs the entities being added to the adapter.
+	 * - Defines a function `addMethods` that adds methods from a source object to a target object.
+	 * - For each entity in the `entityArray`, it does the following:
+	 *   - Gets the repository for the entity.
+	 *   - Gets the entity manager.
+	 *   - Gets the repository entity manager.
+	 *   - Gets the name of the entity.
+	 *   - Gets the method names of the entity.
+	 *   - Defines an object `methodsToAdd` with properties for the entity, options, ORM, manager, repository, and entity name.
+	 *   - Adds the entity methods to the `methodsToAdd` object or the adapter itself if it's the first entity.
+	 *   - Defines an array `entityManagerMethods` of method names to add from the entity manager.
+	 *   - Adds the entity manager methods to the `methodsToAdd` object or the adapter itself if it's the first entity.
+	 *   - Defines an array `repositoryMethods` of method names to add from the repository.
+	 *   - Adds the repository methods to the `methodsToAdd` object or the adapter itself if it's the first entity.
+	 *   - If it's not the first entity, it adds the `methodsToAdd` object to the adapter under the property with the name of the entity.
+	 * - Logs that it's adding a forked entity manager to the adapter.
+	 * - Assigns a forked entity manager to the `manager` and `em` properties.
+	 * - Logs that it's adding a forked repository to the adapter.
+	 * - Assigns a forked repository to the `repository` property.
+	 * - Logs that it's adding the ORM to the adapter.
+	 * - Assigns the ORM to the `orm` property.
+	 * - Logs that it's adding the entity name to the adapter.
+	 * - Assigns the entity name to the `entityName` property.
+	 * - Logs that it's adding the `getEntityManager` method to the adapter.
+	 * - Assigns the `_getEntityManager` method to the `getEntityManager` property.
+	 *
 	 * @methods
 	 * @public
-	 * @returns {Promise}
+	 * @returns {Promise<void>} A promise that resolves when the connection and initialization is complete.
 	 */
-	public async connect(): Promise<any> {
+	public async connect(): Promise<void> {
 		const logger = this.logger!;
 		logger.debug('Adding logger to adapter...');
 		this.connectionManager = new ConnectionManager();
@@ -651,8 +692,17 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Disconnects all connections from database and connection manager.
-	 * It will be called in `broker.stop()` and is used internally.
+	 * Asynchronously disconnects from all the databases.
+	 *
+	 * This method does the following:
+	 * - Iterates over all the connections in the connection manager.
+	 * - For each connection, it does the following:
+	 *   - Logs a message indicating that it's attempting to disconnect from the database.
+	 *   - Tries to close the connection.
+	 *   - If the disconnection is successful, it logs a message indicating that it has disconnected from the database.
+	 *   - If the disconnection fails, it logs an error message and throws a `MoleculerServerError` with the error message,
+	 *     a 500 status code, and the error details.
+	 *
 	 * @methods
 	 * @public
 	 * @returns {Promise<void>}
@@ -704,13 +754,34 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Create new record or records.
-	 * If record exists it is skipped, otherwise it is created.
+	 * Asynchronously creates one or more entities in the database.
+	 *
+	 * This method does the following:
+	 * - Logs a message indicating that it's attempting to create the entity or entities.
+	 * - Defines a function `handleError` that logs an error message and returns a `MoleculerServerError` with the error message,
+	 *   a 500 status code, and the error details.
+	 * - Defines a function `persistEntity` that attempts to persist the entity in the database and flush the changes.
+	 *   If the operation fails, it calls `handleError` with the error.
+	 * - Tries to do the following:
+	 *   - If the `entityOrEntities` parameter is an array, it does the following:
+	 *     - Calls the `_create` method for each entity in the array and waits for all the promises to resolve.
+	 *     - Logs a message indicating that the entities have been created.
+	 *     - Logs a message indicating that it's attempting to persist the created entities and flush the changes.
+	 *     - Returns a promise that resolves when all the entities have been persisted and the changes have been flushed.
+	 *   - If the `entityOrEntities` parameter is not an array, it does the following:
+	 *     - Calls the `_create` method for the entity and waits for the promise to resolve.
+	 *     - Logs a message indicating that it's attempting to persist the created entity and flush the changes.
+	 *     - Returns a promise that resolves when the entity has been persisted and the changes have been flushed.
+	 * - If any error occurs, it throws the error returned by `handleError`.
 	 *
 	 * @methods
-	 * @param {Object | Object[]} entityOrEntities - record(s) to create
-	 * @param {Object?} options - Optional create options
-	 * @returns {Promise<Object | Object[]>}
+	 * @param {RequiredEntityData<T> | RequiredEntityData<T>[]} entityOrEntities - The data for the entity or entities to create.
+	 * @param {CreateOptions} [options] - Optional settings for the creation operation.
+	 *
+	 * @returns {Promise<T | T[]>} A promise that resolves with the created entity or entities.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, and the error details.
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async create<T extends Entity>(
@@ -816,12 +887,17 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Create one or many new entities.
+	 * Asynchronously inserts one or more entities into the database.
+	 *
+	 * This method is a wrapper around the `create` method. It takes the same parameters and returns the same type of promise.
 	 *
 	 * @methods
-	 * @param {Object | Object[]} entityOrEntities - entity or entities to create.
-	 * @param {Object?} options - Insert options.
-	 * @returns {Object | Object[]} Saved entity(ies).
+	 * @param {RequiredEntityData<T> | RequiredEntityData<T>[]} entityOrEntities - The data for the entity or entities to insert.
+	 * @param {CreateOptions} [options] - Optional settings for the insertion operation.
+	 *
+	 * @returns {Promise<T | T[]>} A promise that resolves with the inserted entity or entities.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	public async insert<T extends Entity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
@@ -831,13 +907,31 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Update an entity by ID
+	 * Asynchronously updates an entity in the database by its ID.
+	 *
+	 * This method does the following:
+	 * - Logs a message indicating that it's attempting to update the entity with the provided ID.
+	 * - Transforms the ID using the `beforeQueryTransformID` method.
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeUpdate` method with the transformed ID, the update data, and the options, and waits for the promise to resolve.
+	 *   - Logs a message indicating that the entity has been updated.
+	 *   - Calls the `findById` method with the original ID, and waits for the promise to resolve.
+	 *   - Logs a message indicating that it's transforming the updated entity.
+	 *   - Returns the updated entity transformed by the `afterRetrieveTransformID` method.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_UPDATE_BY_ID', and the error details.
 	 *
 	 * @methods
-	 * @param {any} id - ID of record to be updated
-	 * @param {Object} update - Object with update data
-	 * @param {Object} options - Object with update options
-	 * @returns {Promise<T>} - Updated record
+	 * @param {any} id - The ID of the entity to update.
+	 * @param {EntityData<T>} update - The data to update the entity with.
+	 * @param {UpdateOptions<T>} [options] - Optional settings for the update operation.
+	 *
+	 * @returns {Promise<T>} A promise that resolves with the updated entity.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_UPDATE_BY_ID', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async updateById<T extends Entity>(
@@ -891,12 +985,27 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Remove an entity by ID
+	 * Asynchronously removes an entity from the database by its ID.
+	 *
+	 * This method does the following:
+	 * - Transforms the ID using the `beforeQueryTransformID` method.
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeDelete` method with an object that has a property with the name of the transformed ID and the value of the original ID,
+	 *     and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities removed.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_REMOVE_BY_ID', and the error details.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @param {DeleteOptions<T>} options
-	 * @returns {Promise<number>}
+	 * @param {any} id - The ID of the entity to remove.
+	 * @param {DeleteOptions<T>} [options] - Optional settings for the remove operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities removed.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_REMOVE_BY_ID', and the error details.
+	 *
 	 * @memberof MemoryDbAdapter
 	 */
 	public async removeById<T extends Entity>(
@@ -933,12 +1042,25 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Remove many entities by ID
+	 * Asynchronously removes multiple entities from the database by their IDs.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeDelete` method with the array of IDs and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities removed.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_REMOVE_MANY_BY_ID', and the error details.
 	 *
 	 * @methods
-	 * @param {any[]} id
-	 * @param {DeleteOptions<T>} options
-	 * @returns {Promise<number>}
+	 * @param {any[]} id - The IDs of the entities to remove.
+	 * @param {DeleteOptions<T>} [options] - Optional settings for the remove operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities removed.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_REMOVE_MANY_BY_ID', and the error details.
+	 *
 	 * @memberof MemoryDbAdapter
 	 */
 	public async removeMany<T extends Entity>(
@@ -973,12 +1095,25 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Count number of matching documents in the db to a query.
+	 * Asynchronously counts the number of entities in the database that match the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_count` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities that match the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_COUNT', and the error details.
 	 *
 	 * @methods
-	 * @param {Object} where - query options
-	 * @param {Object?} options - count options
-	 * @returns {Promise<number>}
+	 * @param {FilterQuery<T>} [where] - The filter query to match the entities against.
+	 * @param {CountOptions<T, P>} [options] - Optional settings for the count operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities that match the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_COUNT', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async count<T extends Entity, P extends string>(
@@ -1013,13 +1148,25 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Finds all entities matching your FilterQuery and FindOptions.
-	 * Returns array of entities or single entity depending on your query.
+	 * Asynchronously finds entities in the database that match the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_find` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the entities that match the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND', and the error details.
 	 *
 	 * @methods
-	 * @param {Object} where - query options
-	 * @param {Object?} options - find options
-	 * @returns {Promise<T | T[]>}
+	 * @param {FilterQuery<T>} where - The filter query to match the entities against.
+	 * @param {FindOptions<T, P>?} [options] - Optional settings for the find operation.
+	 *
+	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>} A promise that resolves with the entities that match the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, the error code 'FAILED_TO_FIND', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async find<T extends Entity, P extends string>(
@@ -1054,13 +1201,26 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Finds first item by a given FilterQuery and FindOneOptions.
-	 * If entity was not found in the database - returns null.
+	 * Asynchronously finds a single entity in the database that matches the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_findOne` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the entity that matches the filter query, or null if no entity matches the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND_ONE', and the error details.
 	 *
 	 * @methods
-	 * @param {Object} where - query options
-	 * @param {Object?} options - find options
-	 * @returns {Promise<T | undefined>}
+	 * @param {FilterQuery<T>} where - The filter query to match the entity against.
+	 * @param {FindOneOptions<T, P>} [options] - Optional settings for the find operation.
+	 *
+	 * @returns {Promise<null | Loaded<T, P>>} A promise that resolves with the entity that matches the filter query,
+	 * or null if no entity matches the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_FIND_ONE', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async findOne<T extends Entity, P extends string>(
@@ -1096,11 +1256,25 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Gets item by id(s). No find options can be provided
+	 * Asynchronously finds an entity in the database by its ID. No find options can be provided.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_find` method with the ID, and waits for the promise to resolve.
+	 *   - Returns the first entity that matches the ID, or undefined if no entity matches the ID.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND_BY_ID', and the error details.
 	 *
 	 * @methods
-	 * @param {string | number | string[] | number[]} id - id(s) of entity
-	 * @returns {Promise<T | undefined>}
+	 * @param {string | number | string[] | number[]} id - The ID of the entity to find.
+	 *
+	 * @returns {Promise<T | undefined>} A promise that resolves with the entity that matches the ID, or undefined if no entity matches the ID.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_FIND_BY_ID', and the error details.
+	 * Gets item by id(s).
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async findById<T extends Entity>(
@@ -1135,13 +1309,33 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Populates entity(ies) by id(s) of another record.
+	 * Asynchronously retrieves population data based on the provided parameters.
+	 *
+	 * This method does the following:
+	 * - Extracts the ID from the parameters.
+	 * - Determines whether mapping should be performed based on the parameters.
+	 * - Tries to do the following:
+	 *   - Calls the `findById` method with the ID, and waits for the promise to resolve.
+	 *   - If no document is found, throws a `MoleculerServerError`.
+	 *   - If mapping should be performed, clones the document; otherwise, uses the original document.
+	 *   - Transforms the document into JSON.
+	 *   - If mapping should not be performed, returns the JSON.
+	 *   - If mapping should be performed, creates a new object and maps the JSON to it, using the transformed ID as the key.
+	 *   - Returns the mapped object.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws the error.
 	 *
 	 * @methods
-	 * @param {Context} ctx - Context instance.
-	 * @param {Object?} params - Parameters.
-	 * @returns {Object|Array<Object>} Found entity(ies).
-	 * @throws {EntityNotFoundError} - 404 Entity not found
+	 * @param {Context} ctx - The context of the request.
+	 * @param {any} [params] - The parameters of the request.
+	 *
+	 * @returns {Promise<object | object[]>} A promise that resolves with the population data.
+	 *
+	 * @throws {Errors.MoleculerServerError} If no document is found, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, and the error code 'FAILED_TO_FIND_BY_ID'.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	public async getPopulations(ctx: Context, params?: any): Promise<object | object[]> {
 		const id = params.id;
@@ -1251,12 +1445,35 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * List entities from db using filters and pagination results.
+	 * Asynchronously lists entities in the database based on the provided parameters.
+	 *
+	 * This method does the following:
+	 * - Creates a copy of the parameters for counting entities.
+	 * - Removes pagination parameters from the count parameters.
+	 * - If no limit is provided, sets the limit based on the service settings and the page size.
+	 * - Logs a debug message with the listing parameters.
+	 * - Tries to do the following:
+	 *   - Calls the `_findAndCount` method with the parameters, and waits for the promise to resolve.
+	 *   - Transforms the found documents into JSON.
+	 *   - Returns an object with the following properties:
+	 *     - `rows`: The transformed documents.
+	 *     - `total`: The total number of entities.
+	 *     - `page`: The current page.
+	 *     - `pageSize`: The page size.
+	 *     - `totalPages`: The total number of pages.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_LIST', and the error details.
 	 *
 	 * @methods
-	 * @param {Context} ctx - Context instance.
-	 * @param {ListParams<Object>?} params - Optional parameters.
-	 * @returns {Object} List of found entities and count.
+	 * @param {Context} ctx - The context of the request.
+	 * @param {ListParams<Object>?} params - The parameters of the request.
+	 *
+	 * @returns {Promise<object>} A promise that resolves with an object containing the listed entities and pagination information.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, the error code 'FAILED_TO_LIST', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async list(ctx: Context, params: any): Promise<object> {
@@ -1364,12 +1581,21 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Transforms user defined idField into expected db id field name.
+	 * Transforms the ID field of an entity before saving it to the database.
+	 *
+	 * This method does the following:
+	 * - Creates a deep copy of the entity.
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field and the entity has the provided ID field, it does the following:
+	 *   - Sets the value of the database ID field in the new entity to the value of the provided ID field.
+	 *   - Deletes the provided ID field from the new entity.
+	 * - Returns the new entity.
 	 *
 	 * @methods
-	 * @param {Object} entity - Record to be saved
-	 * @param {String} idField - user defined service idField
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
 	 * @returns {Object} - Modified entity
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public beforeSaveTransformID(entity: any, idField: string): object {
@@ -1412,12 +1638,21 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Transforms db field name into user defined idField service property
+	 * Transforms the ID field of an entity after retrieving it from the database.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - Creates a deep copy of the entity.
+	 * - If the entity does not have the provided ID field but has the database ID field, it does the following:
+	 *   - Sets the value of the provided ID field in the new entity to the value of the database ID field.
+	 *   - Deletes the database ID field from the new entity.
+	 * - Returns the new entity.
 	 *
 	 * @methods
-	 * @param {Object} entity = Record retrieved from db
-	 * @param {String} idField - user defined service idField
-	 * @returns {Object} - Modified entity
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {object} The transformed entity.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public afterRetrieveTransformID(entity: any, idField: string): object {
@@ -1454,11 +1689,14 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Encode ID of entity.
+	 * Encodes the ID of an entity.
+	 *
+	 * This method currently returns the ID as is. It can be overridden in subclasses to provide custom ID encoding.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to encode.
+	 * @returns {any} The encoded ID.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public encodeID(id: any): any {
@@ -1466,10 +1704,14 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Convert id to mongodb ObjectId.
+	 * Converts a given ID to a MongoDB ObjectId.
+	 *
+	 * This method is used when working with MongoDB, where the IDs are usually of the ObjectId type.
+	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to convert.
+	 * @returns {ObjectId} The converted ObjectId.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public toMongoObjectId(id: any): ObjectId {
@@ -1477,11 +1719,15 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Convert mongodb ObjectId to string.
+	 * Converts a given MongoDB ObjectId to a string.
+	 *
+	 * This method is used when working with MongoDB, where the IDs are usually of the ObjectId type.
+	 * It converts the ObjectId back to a string for use in the application.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The MongoDB ObjectId to convert.
+	 * @returns {string} The converted string ID.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public fromMongoObjectId(id: any): string {
@@ -1489,11 +1735,16 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Transform user defined idField service property into the expected id field of db.
+	 * Transforms the ID field of a query before executing it.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field, returns the database ID field; otherwise, returns the provided ID field.
 	 *
 	 * @methods
-	 * @param {any} idField - user defined service idField
-	 * @returns {Object} - Record to be saved
+	 * @param {any} idField - The ID field to transform.
+	 * @returns {any} The transformed ID field.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public beforeQueryTransformID(idField: any): any {
@@ -1531,18 +1782,36 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Transform the fetched documents by converting id to user defind idField,
-	 * filtering the fields according to the fields service property,
-	 * and populating the document with the relations specified in the populate service property.
+	 * Transforms documents after retrieving them from the database.
+	 *
+	 * This method does the following:
+	 * - Logs a debug message.
+	 * - Determines the user-defined ID field from the service settings.
+	 * - Checks if the documents are an array or an object.
+	 * - If the documents are an object, converts them to an array.
+	 * - Tries to do the following:
+	 *   - Converts the documents to JavaScript objects.
+	 *   - Applies the user-defined ID field to the documents.
+	 *   - Encodes the IDs of the documents.
+	 *   - If the context and the populate parameter are provided, populates the documents.
+	 *   - If the context and the fields parameter are provided, filters the fields of the documents.
+	 *   - If the excludeFields parameter is provided, excludes the specified fields from the documents.
+	 *   - Returns the transformed documents and populates the document with the relations specified in the populate service property.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_TRANSFORM_DOCUMENTS', and the error details.
 	 *
 	 * @methods
-	 * @param {Context} ctx - Context of the request
-	 * @param {Object} 	params - Params of the request
-	 * @param {Array|Object} docs - Records to be transformed
-	 * @returns {Array|Object} - Transformed records
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Object} params - The parameters of the request.
+	 * @param {Array|Object} docs - The documents to transform.
+	 * @returns {Promise<any[] | object>} A promise that resolves with the transformed documents.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_TRANSFORM_DOCUMENTS', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async transformDocuments(ctx: any, params: any, docs: any): Promise<any[] | object> {
+	public async transformDocuments(ctx: Context, params: any, docs: any): Promise<any[] | object> {
 		this.logger!.debug('Transforming documents..');
 		let isDoc = false;
 		this.logger!.debug(`Setting userDefinedIDField to ${this.service.settings.idField}`);
@@ -1768,16 +2037,27 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	// }
 
 	/**
-	 * Call before entity lifecycle events
+	 * Executes a hook (before entity lifecycle event) before an entity change operation.
+	 *
+	 * This method does the following:
+	 * - Constructs the event name based on the type of the operation.
+	 * - If there is no hook for the event in the service schema, returns the entity as is.
+	 * - If there is a hook for the event in the service schema, calls the hook with the entity and the context, and waits for the promise to resolve.
+	 * - Returns the result of the hook, or the entity if there is no hook.
 	 *
 	 * @methods
-	 * @param {String} type
-	 * @param {Object} entity
-	 * @param {Context} ctx
-	 * @returns {Promise}
+	 * @param {string | undefined} type - The type of the operation. This should be 'Create', 'Update', or 'Remove'.
+	 * @param {Object} entity - The entity to be changed.
+	 * @param {Context} ctx - The context of the operation.
+	 * @returns {Promise<any>} A promise that resolves with the result of the hook, or the entity if there is no hook.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any> {
+	public async beforeEntityChange(
+		type: string | undefined,
+		entity: object,
+		ctx: Context,
+	): Promise<any> {
 		const eventName = `beforeEntity${capitalize(type)}`;
 		if (this.service.schema[eventName] == null) {
 			return entity;
@@ -1793,16 +2073,28 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Clear the cache & call entity lifecycle events
+	 * Executes a hook after an entity change operation and clears the cache.
+	 *
+	 * This method does the following:
+	 * - Clears the cache.
+	 * - Constructs the event name based on the type of the operation.
+	 * - If there is no hook for the event in the service schema, returns undefined.
+	 * - If there is a hook for the event in the service schema, calls the hook with the entity and the context, and waits for the promise to resolve.
+	 * - Returns the result of the hook.
 	 *
 	 * @methods
-	 * @param {String} type
-	 * @param {Object|Array<Object>|Number} json
-	 * @param {Context} ctx
-	 * @returns {Promise}
+	 * @param {string | undefined} type - The type of the operation. This should be 'Create', 'Update', or 'Remove'.
+	 * @param {Object|Array<Object>|Number} json - The entity that was changed.
+	 * @param {Context} ctx - The context of the operation.
+	 * @returns {Promise<any>} A promise that resolves with the result of the hook, or undefined if there is no hook.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async entityChanged(type: string | undefined, json: any, ctx: any): Promise<any> {
+	public async entityChanged(
+		type: string | undefined,
+		json: object | object[] | number,
+		ctx: any,
+	): Promise<any> {
 		await this.clearCache();
 		const eventName = `entity${capitalize(type)}`;
 		if (this.service.schema[eventName] != null) {
@@ -1819,10 +2111,15 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Clear cached entities
+	 * Clears the cache for this service.
+	 *
+	 * This method does the following:
+	 * - Emits a cache clean event for this service.
+	 * - If a cacher is available, cleans the cache for this service.
 	 *
 	 * @methods
-	 * @returns {Promise}
+	 * @returns {Promise<any>} A promise that resolves when the cache is cleaned. If no cacher is available, the promise resolves immediately.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public async clearCache(): Promise<any> {
@@ -1840,15 +2137,23 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Filter fields in the entity object
+	 * Filters the fields of a document.
+	 *
+	 * This method does the following:
+	 * - If the fields parameter is an array, it does the following:
+	 *   - Reduces the fields array to a new object that only includes the specified fields from the document.
+	 *   - If a field is not found in the document, it is not included in the new object.
+	 *   - Returns the new object.
+	 * - If the fields parameter is not an array, it returns the document as is.
 	 *
 	 * @methods
-	 * @param {Object} doc - Record to be filtered.
-	 * @param {Array<String>} fields - Filter properties of model.
-	 * @returns	{Object} - Filtered record
+	 * @param {Object} doc - The document to filter.
+	 * @param {string[]} fields - The fields to include in the filtered document.
+	 * @returns {object} The filtered document.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public filterFields(doc: any, fields: any[]): object {
+	public filterFields(doc: object, fields: string[]): object {
 		if (Array.isArray(fields)) {
 			return fields.reduce((res, n) => {
 				const v = get(doc, n);
@@ -1877,15 +2182,21 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Exclude fields in the entity object
+	 * Excludes specified fields from a document.
+	 *
+	 * This method does the following:
+	 * - If the fields parameter is a string, it converts it to an array.
+	 * - If the fields array is not empty, it calls the `_excludeFields` method with the document and the fields array, and returns the result.
+	 * - If the fields array is empty, it returns the document as is.
 	 *
 	 * @methods
-	 * @param {Object} doc - Record to be filtered.
-	 * @param {Array<String>} fields - Exclude properties of model.
-	 * @returns	{Object} - Recored without excluded fields
+	 * @param {any} doc - The document to exclude fields from.
+	 * @param {string | any[]} fields - The fields to exclude from the document. This can be a string or an array of strings.
+	 * @returns {object} The document with the specified fields excluded.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public excludeFields(doc: any, fields: string | any[]): object {
+	public excludeFields(doc: object, fields: string | any[]): object {
 		if (typeof fields === 'string') {
 			fields = [fields];
 		}
@@ -1901,20 +2212,46 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 		return doc;
 	} */
+
 	/**
-	 * Populate documents for relations.
-	 * Used when relations between records between different databases can't be done.
-	 * Populates the retreived record by calling service action with the `id` of the relation.
-	 * Does not update related document at this time
+	 * Populates documents with additional data based on the provided fields.
+	 *
+	 * This method does the following:
+	 * - Logs a debug message.
+	 * - Checks if the service settings include populates, if the populateFields parameter is an array,
+	 *   and if it is not empty. If any of these conditions are not met, it returns the documents as is.
+	 * - Checks if the documents are null, not an object, or not an array. If any of these conditions are met,
+	 *   it returns the documents as is.
+	 * - Groups the populate fields based on the service settings.
+	 * - For each populate field in the service settings, it does the following:
+	 *   - Checks if the grouped populate fields include the populate field. If not, it continues to the next populate field.
+	 *   - Gets the rule for the populate field from the service settings.
+	 *   - If the rule is a function, it converts it to an object with a handler property.
+	 *   - If the rule is a string, it converts it to an object with an action property.
+	 *   - Adds the populate field to the rule object.
+	 *   - Gets the IDs from the documents based on the rule field.
+	 *   - If the rule includes a handler, it calls the handler with the IDs, the documents, the rule, and the context,
+	 *     and adds the promise to the promises array.
+	 *   - If the rule does not include a handler and the IDs array is not empty, it does the following:
+	 *     - Constructs the parameters for the action call.
+	 *     - Calls the action with the parameters, transforms the result, and adds the promise to the promises array.
+	 * - Waits for all promises to resolve, then returns the documents.
+	 * - If any error occurs, it logs an error message and throws the error.
 	 *
 	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Array|Object} docs - Records to be populated
-	 * @param {Array?} populateFields - Fields to be populated
-	 * @returns	{Promise} - Record with populated fields of relation
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Array|Object} docs - The documents to populate.
+	 * @param {any[]} [populateFields] - The fields to populate in the documents.
+	 * @returns {Promise<any>} A promise that resolves with the populated documents.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, the error is thrown.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any> {
+	public async populateDocs(
+		ctx: Context,
+		docs: any[] | object,
+		populateFields?: any[],
+	): Promise<any> {
 		this.logger!.debug('Attempting to populate documents..');
 		if (
 			!this.service.settings.populates ||
@@ -2014,7 +2351,12 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			.then(() => docs)
 			.catch((error: any) => {
 				this.logger!.error(`Failed to populate documents: ${error}`);
-				throw error;
+				throw new Errors.MoleculerServerError(
+					`Failed to populate documents: ${error}`,
+					500,
+					'FAILED_TO_POPULATE_DOCUMENTS',
+					error,
+				);
 			});
 	}
 	// public async populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any> {
@@ -2128,15 +2470,22 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	// }
 
 	/**
-	 * Validate an entity by validator.
+	 * Validates an entity or an array of entities.
 	 * Uses the `entityValidator` setting. If no validator function is supplied, returns record.
 	 *
+	 * This method does the following:
+	 * - Checks if the entityValidator in the service settings is a function. If not, it returns the entity as is.
+	 * - If the entity is not an array, it converts it to an array.
+	 * - Calls the entityValidator for each entity in the array, and waits for all promises to resolve.
+	 * - Returns the entity.
+	 *
 	 * @methods
-	 * @param {Object} entity - Record to be validated
-	 * @returns {Promise} - Validated record or unvalitaded record if no validator function is supplied.
+	 * @param {Object | Object[]} entity - The entity or an array of entities to validate.
+	 * @returns {Promise<Object | Object[]>} A promise that resolves with the validated entity or array of entities.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public async validateEntity(entity: any): Promise<any> {
+	public async validateEntity(entity: object | object[]): Promise<object | object[]> {
 		if (!isFunction(this.service.settings.entityValidator)) {
 			return entity;
 		}
@@ -2163,11 +2512,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Convert DB entity to JSON object
+	 * Converts an entity to a JavaScript object.
+	 *
+	 * This method currently returns the entity as is. It can be overridden in subclasses to provide custom entity to object conversion.
 	 *
 	 * @methods
-	 * @param {any} entity - Record to be converted
-	 * @returns {Object} - JSON object of record
+	 * @param {any} entity - The entity to convert.
+	 * @returns {object} The converted object.
 	 * @memberof MikroORMDbAdapter
 	 */
 	public entityToObject(entity: any): object {
@@ -2175,14 +2526,25 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	}
 
 	/**
-	 * Authorize the required field list. Remove fields which does not exist in the `this.service.settings.fields`
+	 * Authorizes the fields based on the service settings.
+	 *
+	 * This method does the following:
+	 * - Checks if the service settings include fields and if the fields array is not empty. If not, it returns the askedFields as is.
+	 * - Checks if the askedFields parameter is an array and if it is not empty. If not, it returns the askedFields as is.
+	 * - Filters the askedFields array to include only the fields that are allowed by the service settings. It does this by doing the following:
+	 *   - Checks if the askedField is included in the service settings fields. If it is, it includes the askedField in the allowedFields.
+	 *   - If the askedField includes a '.', it splits the askedField into parts and checks if any of the parts are included
+	 *     in the service settings fields. If they are, it includes the askedField in the allowedFields.
+	 *   - Checks if any of the service settings fields start with the askedField followed by a '.'.
+	 *     If they do, it includes the askedField in the allowedFields.
+	 * - Returns the allowedFields.
 	 *
 	 * @methods
-	 * @param {Array} askedFields - List of fields to be authorized
-	 * @returns {Array} - Authorized list of fields
+	 * @param {String[]} askedFields - The fields to authorize.
+	 * @returns {String[]} The authorized fields.
 	 * @memberof MikroORMDbAdapter
 	 */
-	public authorizeFields(askedFields: any[]): any[] {
+	public authorizeFields(askedFields: string[]): string[] {
 		if (this.service.settings.fields && this.service.settings.fields.length > 0) {
 			if (isArray(askedFields) && askedFields.length > 0) {
 				const allowedFields = askedFields.filter((askedField) => {
@@ -2249,16 +2611,31 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Sanitize context parameters at `find` action.
+	 * Sanitizes and converts parameters based on their expected types.
+	 *
+	 * This method does the following:
+	 * - Copies the parameters object.
+	 * - Defines helper functions to convert parameters to numbers, arrays, and JSON objects.
+	 * - Converts the 'limit', 'offset', 'page', and 'pageSize' parameters to numbers.
+	 * - Converts the 'sort', 'fields', 'excludeFields', 'populate', and 'searchFields' parameters to arrays.
+	 * - Converts the 'query', 'where', and 'options' parameters to JSON objects.
+	 * - If the action is a list action, it does the following:
+	 *   - Sets default values for the 'pageSize' and 'page' parameters.
+	 *   - If the 'pageSize' parameter is greater than the maximum page size, it sets the 'pageSize' parameter to the maximum page size.
+	 *   - Sets the 'limit' parameter to the 'pageSize' parameter.
+	 *   - Calculates the 'offset' parameter based on the 'page' and 'pageSize' parameters.
+	 * - If the 'limit' parameter is greater than the maximum limit, it sets the 'limit' parameter to the maximum limit.
+	 * - Returns the sanitized parameters.
 	 *
 	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Object} params - Request parameters
-	 * @returns {Object} - Sanitized parameters
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Object} params - The parameters to sanitize.
+	 * @returns {object} The sanitized parameters.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public sanitizeParams(ctx: any, params: any) {
-		const p = { ...params };
+	public sanitizeParams(ctx: Context, params: object): object {
+		const p: { [key: string]: any } = { ...params };
 
 		const convertToNumber = (param: string) => {
 			if (typeof p[param] === 'string') {
@@ -2282,7 +2659,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		['sort', 'fields', 'excludeFields', 'populate', 'searchFields'].forEach(convertToArray);
 		['query', 'where', 'options'].forEach(convertToJSON);
 
-		if (ctx.action.name.endsWith('.list')) {
+		if (ctx.action?.name?.endsWith('.list')) {
 			const { pageSize: defaultPageSize, maxPageSize, maxLimit } = this.service.settings;
 
 			p.pageSize = p.pageSize || defaultPageSize;
@@ -2382,9 +2759,21 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	} */
 
 	/**
-	 * Exclude fields in the entity object. Internal use only, must ensure `fields` is an Array
+	 * Excludes specified fields from a document. Internal use only, must ensure `fields` is an Array
+	 *
+	 * This method does the following:
+	 * - Clones the document.
+	 * - For each field in the fields array, it removes the field from the cloned document.
+	 * - Returns the cloned document.
+	 *
+	 * @methods
+	 * @param {Object} doc - The document to exclude fields from.
+	 * @param {String[]} fields - The fields to exclude from the document.
+	 * @returns {object} The document with the specified fields excluded.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	private _excludeFields(doc: any, fields: any[]) {
+	private _excludeFields(doc: object, fields: string[]) {
 		return fields.reduce((res, field) => {
 			unset(res, field);
 			return res;
@@ -2400,7 +2789,12 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	// #endregion Adapter custom methods
 }
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
+/**
+ * Implementation of the MikroORMServiceSchemaMixin.
+ * It defines a mixin function that can be used to create a Mikro-ORM Data Access service schema.
+ * The schema includes service settings, actions for finding, counting, listing, creating, inserting, and getting entities.
+ * Each action has its own parameters and handler function.
+ */
 export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) => {
 	const mixin = defaultsDeep(
 		{
@@ -2465,20 +2859,35 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 			 */
 			actions: {
 				/**
-				 * Find entities by query.
+				 * The `find` method configuration.
+				 *
+				 * This configuration does the following:
+				 * - Defines the cache keys for the `find` method.
+				 * - Defines the parameters for the `find` method, including their types, whether they are optional, and their conversion rules.
+				 * - Defines the handler for the `find` method, which sanitizes the parameters and calls the `_find` method.
 				 *
 				 * @actions
 				 * @cached
-				 * @param {String|Array<String>} populate - Populated fields.
-				 * @param {String|Array<String>} fields - Fields filter.
-				 * @param {String|Array<String>} excludeFields - List of excluded fields.
-				 * @param {Number?} limit - Max count of rows.
-				 * @param {Number?} offset - Count of skipped rows.
-				 * @param {String?} sort - Sorted fields.
-				 * @param {String?} search - Search text.
-				 * @param {String|Array<String>} searchFields - Fields for searching.
-				 * @param {Object?} query - Query object. Passes to adapter.
-				 * @returns {Array<Object>} List of found entities.
+				 * @property {object} cache - The cache configuration for the `find` method.
+				 * @property {string[]} cache.keys - The keys to cache for the `find` method.
+				 *
+				 * @property {object} params - The parameters configuration for the `find` method.
+				 * @property {object[]} params.populate - The configuration for the `populate` parameter.
+				 * @property {object[]} params.fields - The configuration for the `fields` parameter.
+				 * @property {object[]} params.excludeFields - The configuration for the `excludeFields` parameter.
+				 * @property {object} params.take - The configuration for the `take` parameter.
+				 * @property {object} params.skip - The configuration for the `skip` parameter.
+				 * @property {object} params.limit - The configuration for the `limit` parameter.
+				 * @property {object} params.offset - The configuration for the `offset` parameter.
+				 * @property {object} params.sort - The configuration for the `sort` parameter.
+				 * @property {object} params.search - The configuration for the `search` parameter.
+				 * @property {object[]} params.searchFields - The configuration for the `searchFields` parameter.
+				 * @property {object[]} params.query - The configuration for the `query` parameter.
+				 *
+				 * @property {Function} handler - The handler for the `find` method.
+				 * @property {Context<{params: any}>} handler.ctx - The context of the request.
+				 *
+				 * @returns {Object | Object[]} The result of the `_find` method.
 				 */
 				find: {
 					cache: {
@@ -2550,7 +2959,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						ctx: Context<{
 							params: any;
 						}>,
-					): any {
+					): object | object[] {
 						// @ts-ignore
 						const params = this.adapter.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -2559,13 +2968,26 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Get count of entities by query.
+				 * The `count` method configuration.
+				 *
+				 * This configuration does the following:
+				 * - Defines the cache keys for the `count` method.
+				 * - Defines the parameters for the `count` method, including their types and whether they are optional.
+				 * - Defines the handler for the `count` method, which sanitizes the parameters and calls the `_count` method.
 				 *
 				 * @actions
 				 * @cached
-				 * @param {Object?} options - Optional settings.
-				 * @param {Object?} query - Query object. Passes to adapter.
-				 * @returns {Number} Count of found entities.
+				 * @property {object} cache - The cache configuration for the `count` method.
+				 * @property {string[]} cache.keys - The keys to cache for the `count` method.
+				 *
+				 * @property {object?} params - The parameters configuration for the `count` method.
+				 * @property {object?} params.options - The configuration for the `options` parameter.
+				 * @property {object?} params.query - The configuration for the `query` parameter.
+				 *
+				 * @property {Function} handler - The handler for the `count` method.
+				 * @property {Context<{options?: any}, {query?: any}>} handler.ctx - The context of the request.
+				 *
+				 * @returns {Number} The result of the `_count` method.
 				 */
 				count: {
 					cache: {
@@ -2575,7 +2997,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						options: { type: 'object', optional: true },
 						query: { type: 'object', optional: true },
 					},
-					handler(ctx: Context<{ options?: any }, { query?: any }>): any {
+					handler(ctx: Context<{ options?: any }, { query?: any }>): number {
 						// @ts-ignore
 						const params = this.adapter.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -2661,13 +3083,24 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Create a new entity.
+				 * The `create` method configuration.
+				 *
+				 * This configuration does the following:
+				 * - Defines the REST endpoint for the `create` method.
+				 * - Defines the parameters for the `create` method, including their types and whether they are optional.
+				 * - Defines the handler for the `create` method, which sanitizes the parameters and calls the `_create` method.
 				 *
 				 * @actions
+				 * @property {string} rest - The REST endpoint for the `create` method.
 				 *
-				 * @param {Object | Array<Object>} entityOrEntities - Entity to save.
-				 * @param {Object?} options - Optional create options.
-				 * @returns {Object | Array<Object>} Saved entit(y/ies).
+				 * @property {object} params - The parameters configuration for the `create` method.
+				 * @property {object | object[]} params.entityOrEntities - The configuration for the `entityOrEntities` parameter.
+				 * @property {object?} params.options - The configuration for the `options` parameter.
+				 *
+				 * @property {Function} handler - The handler for the `create` method.
+				 * @property {Context<{entityOrEntities: object | any[]}, {options?: object}>} handler.ctx - The context of the request.
+				 *
+				 * @returns {object | object[]} The result of the `_create` method.
 				 */
 				create: {
 					rest: 'POST /',
@@ -2676,8 +3109,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						options: { type: 'object', optional: true },
 					},
 					handler(
-						ctx: Context<{ entityOrEntities: object | any[] }, { options?: object }>,
-					): any {
+						ctx: Context<{ entityOrEntities: object | object[] }, { options?: object }>,
+					): object | object[] {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -2687,12 +3120,24 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Insert many new entities.
+				 * The `insert` method configuration.
+				 *
+				 * This configuration does the following:
+				 * - Defines the REST endpoint for the `insert` method.
+				 * - Defines the parameters for the `insert` method, including their types and whether they are optional.
+				 * - Defines the handler for the `insert` method, which sanitizes the parameters and calls the `_insert` method.
 				 *
 				 * @actions
-				 * @param {Object | Array<Object>} entityOrEntities - Entity to insert.
-				 * @param {Object?} options - Optional insert options.
-				 * @returns {Object|Array<Object>} Inserted entity(ies).
+				 * @property {string} rest - The REST endpoint for the `insert` method.
+				 *
+				 * @property {object} params - The parameters configuration for the `insert` method.
+				 * @property {object | object[]} params.entityOrEntities - The configuration for the `entityOrEntities` parameter.
+				 * @property {object?} params.options - The configuration for the `options` parameter.
+				 *
+				 * @property {Function} handler - The handler for the `insert` method.
+				 * @property {Context<{entityOrEntities: object | any[]; options?: object}>} handler.ctx - The context of the request.
+				 *
+				 * @returns {object | object[]} The result of the `_insert` method.
 				 */
 				insert: {
 					rest: 'PUT /',
@@ -2701,8 +3146,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						options: { type: 'object', optional: true },
 					},
 					handler(
-						ctx: Context<{ entityOrEntities: object | any[] }, { options?: object }>,
-					): any {
+						ctx: Context<{ entityOrEntities: object | object[]; options?: object }>,
+					): object | object[] {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -2711,17 +3156,39 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Get entity by ID.
+				 * The `get` method configuration.
+				 *
+				 * This configuration does the following:
+				 * - Defines the cache keys for the `get` method.
+				 * - Defines the REST endpoint for the `get` method.
+				 * - Defines the parameters for the `get` method, including their types, whether they are optional, and their items' types.
+				 * - Defines the handler for the `get` method, which sanitizes the parameters and calls the `_get` method.
 				 *
 				 * @actions
 				 * @cached
+				 * @property {object} cache - The cache configuration for the `get` method.
+				 * @property {string[]} cache.keys - The keys to cache for the `get` method.
 				 *
-				 * @param {any|Array<any>} id - ID(s) of entity.
-				 * @param {String|Array<String>} populate - Field list for populate.
-				 * @param {String|Array<String>} fields - Fields filter.
-				 * @param {String|Array<String>} excludeFields - List of excluded fields.
-				 * @param {Boolean?} mapping - Convert the returned `Array` to `Object` where the key is the value of `id`.
-				 * @returns {Object|Array<Object>} Found entity(ies).
+				 * @property {string} rest - The REST endpoint for the `get` method.
+				 *
+				 * @property {object} params - The parameters configuration for the `get` method.
+				 * @property {string|number|string[]|number[]>} params.id - The configuration for the `id` parameter.
+				 * @property {string?|stirng[]?} params.populate - The configuration for the `populate` parameter.
+				 * @property {string?|stirng[]?} params.relations - The configuration for the `relations` parameter.
+				 * @property {string?|stirng[]?} params.fields - The configuration for the `fields` parameter.
+				 * @property {string?|stirng[]?} params.excludeFields - The configuration for the `excludeFields` parameter.
+				 * @property {boolean?} params.mapping - The configuration for the `mapping` parameter.
+				 *
+				 * @property {Function} handler - The handler for the `get` method.
+				 * @property {Context<{
+				 *   id: string | number | string[] | number[];
+				 *   populate?: string | string[];
+				 *   relations?: string | string[];
+				 *   fields?: string | string[];
+				 *   excludeFields?: string | string[];
+				 *   mapping?: boolean;}>} handler.ctx - The context of the request.
+				 *
+				 * @returns {object | object[]} The result of the `_get` method.
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
 				get: {
@@ -2749,7 +3216,16 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						],
 						mapping: { type: 'boolean', optional: true },
 					},
-					handler(ctx: Context): any {
+					handler(
+						ctx: Context<{
+							id: string | number | string[] | number[];
+							populate?: string | string[];
+							relations?: string | string[];
+							fields?: string | string[];
+							excludeFields?: string | string[];
+							mapping?: boolean;
+						}>,
+					): object | object[] {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -2758,12 +3234,23 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Update an entity by ID.
-				 * > After update, clear the cache & call lifecycle events.
+				 * The `update` method configuration.
+				 *
+				 * This configuration does the following:
+				 * - Defines the REST endpoint for the `update` method.
+				 * - Defines the parameters for the `update` method, including their types and whether they are optional.
+				 * - Defines the handler for the `update` method, which sanitizes the parameters and calls the `_update` method.
 				 *
 				 * @actions
-				 * @param {any} id - ID of entity.
-				 * @returns {Object} Updated entity.
+				 * @property {string} rest - The REST endpoint for the `update` method.
+				 *
+				 * @property {object} params - The parameters configuration for the `update` method.
+				 * @property {string|number} params.id - The configuration for the `id` parameter.
+				 *
+				 * @property {Function} handler - The handler for the `update` method.
+				 * @property {Context<{id: any}>} handler.ctx - The context of the request.
+				 *
+				 * @returns {object} The result of the `_update` method.
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
 				update: {
@@ -2771,7 +3258,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					params: {
 						id: { type: 'any' },
 					},
-					handler(ctx: Context<{ id: any }>): any {
+					handler(ctx: Context<{ id: string | number }>): object {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
@@ -2780,21 +3267,33 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Remove an entity by ID.
+				 * The `remove` method configuration.
+				 *
+				 * This configuration does the following:
+				 * - Defines the REST endpoint for the `remove` method.
+				 * - Defines the parameters for the `remove` method, including their types and whether they are optional.
+				 * - Defines the handler for the `remove` method, which sanitizes the parameters and calls the `_remove` method.
 				 *
 				 * @actions
-				 * @param {any} id - ID of entity.
-				 * @param {Object?} options - optional remove options
-				 * @returns {Object} removed entity.
+				 * @property {string} rest - The REST endpoint for the `remove` method.
+				 *
+				 * @property {object} params - The parameters configuration for the `remove` method.
+				 * @property {string|number} params.id - The configuration for the `id` parameter.
+				 * @property {object?} params.options - The configuration for the `options` parameter.
+				 *
+				 * @property {Function} handler - The handler for the `remove` method.
+				 * @property {Context<{id: any; options?: object}>} handler.ctx - The context of the request.
+				 *
+				 * @returns {object} The result of the `_remove` method.
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
 				remove: {
 					rest: 'DELETE /:id',
 					params: {
-						id: { type: 'any' },
+						id: [{ type: 'string' }, { type: 'number' }],
 						options: { type: 'object', optional: true },
 					},
-					handler(ctx: Context<{ id: any }, { options?: object }>): any {
+					handler(ctx: Context<{ id: any; options?: object }>): object {
 						// @ts-ignore
 						return this._remove(ctx, ctx.params);
 					},
@@ -2807,24 +3306,55 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 			 */
 			methods: {
 				/**
-				 * Connect to database.
+				 * Establishes a connection using the adapter and calls the `afterConnected` handler in the schema if it exists.
+				 *
+				 * This method does the following:
+				 * - Calls the `connect` method of the adapter.
+				 * - After the connection is established, it checks if there is an `afterConnected` function in the schema.
+				 * - If the `afterConnected` function exists, it calls this function.
+				 * - If an error occurs during the execution of the `afterConnected` function, it logs the error.
+				 *
+				 * @returns {Promise<any>} A promise that resolves when the connection is established and the
+				 * `afterConnected` function (if it exists) has been called.
+				 *
+				 * @throws {Error} If an error occurs during the execution of the `afterConnected` function, it logs the error and continues.
 				 */
-				connect(): any {
-					// @ts-ignore
-					return this.adapter.connect().then(() => {
+				async connect(): Promise<void> {
+					try {
+						// @ts-ignore
+						this.logger.info('Connecting adapter...');
+						// Connect using the adapter
+						// @ts-ignore
+						await this.adapter.connect();
+
 						// Call an 'afterConnected' handler in schema
 						// @ts-ignore
 						if (isFunction(this.schema.afterConnected)) {
 							try {
 								// @ts-ignore
+								this.logger.info('Calling service afterConnected method...');
+								// @ts-ignore
 								return this.schema.afterConnected.call(this);
 							} catch (err) {
-								/* istanbul ignore next */
 								// @ts-ignore
-								this.logger.error('afterConnected error!', err);
+								this.logger.error('afterConnected error: ', err);
+								throw new Errors.MoleculerServerError(
+									`Failed to call afterConnected: ${err}`,
+									500,
+									'FAILED_TO_CALL_AFTERCONNECTED',
+									err,
+								);
 							}
 						}
-					});
+					} catch (err) {
+						/* istanbul ignore next */
+						throw new Errors.MoleculerServerError(
+							`Failed to connect adapter: ${err}`,
+							500,
+							'FAILED_TO_CONNECT_ADAPTER',
+							err,
+						);
+					}
 				},
 
 				/**
@@ -2859,11 +3389,11 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @methods
 				 * @param {any|Array<any>} id - ID or IDs.
 				 * @param {Boolean?} decoding - Need to decode IDs.
-				 * @returns {Object|Array<Object>} Found entity(ies).
+				 * @returns {Promise<object | object[]>} Found entity(ies).
 				 */
-				getById(id: string | any[], decoding: boolean): any {
+				async getById(id: string | any[], decoding: boolean): Promise<object | object[]> {
 					// @ts-ignore
-					return this.adapter.findById(decoding ? this.adapter.decodeID(id) : id);
+					return await this.adapter.findById(decoding ? this.adapter.decodeID(id) : id);
 				},
 				/* getById(
 					// ctx: Context,
@@ -3051,43 +3581,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					>,
 				): Promise<Loaded<T, P> | Loaded<T, P>[]> {
 					// @ts-ignore
-					this.logger.debug('Sanitizing parameters...');
-					const params = this.sanitizeParams(ctx, ctx.params);
-
-					const findAndTransform = async (
-						where: FilterQuery<T>,
-						options: FindOptions<T, P>,
-					) => {
-						try {
-							// @ts-ignore
-							const docs = await this.adapter.find(where, options);
-							// @ts-ignore
-							this.logger.debug('Transforming find docs...');
-							return this.transformDocuments(ctx, params, docs);
-						} catch (error) {
-							// @ts-ignore
-							this.logger.error(`Failed to find ${error}`);
-							throw new moleculer.Errors.MoleculerServerError(
-								`Failed to find ${error}`,
-								500,
-								'FAILED_TO_FIND_ONE_BY_OPTIONS',
-								error,
-							);
-						}
-					};
-
-					const response: Loaded<T, P>[] = params.where
-						? await findAndTransform(params.where, params.options)
-						: await findAndTransform(params, params.options);
-
-					return response.length > 1 ? response : response[0];
-				},
-				/* async _find<T extends object, P extends string>(
-					ctx: Context<
-						FilterQuery<T> | { where?: FilterQuery<T>; options?: FindOptions<T, P> }
-					>,
-				): Promise<Loaded<T, P> | Loaded<T, P>[]> {
-					// @ts-ignore
 					this.logger.debug('Sanatizing paramaters...');
 					const params = this.sanitizeParams(ctx, ctx.params);
 
@@ -3149,7 +3642,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						: await optionPresent();
 
 					return response.length > 1 ? response : response[0];
-				}, */
+				},
 
 				/**
 				 * Get count of entities by query.
@@ -3164,17 +3657,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				_count(ctx: Context, params: any): number {
 					// Remove pagination params
 					if (params?.limit) {
-						delete params.limit;
-					}
-					if (params?.offset) {
-						delete params.offset;
-					}
-					// @ts-ignore
-					return this.adapter.count(params);
-				},
-				/* _count(ctx: Context, params: any): number {
-					// Remove pagination params
-					if (params?.limit) {
 						params.limit = null;
 					}
 					if (params?.offset) {
@@ -3182,7 +3664,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					}
 					// @ts-ignore
 					return this.adapter.count(params);
-				}, */
+				},
 
 				/**
 				 * List entities by filters and pagination results.
@@ -3209,43 +3691,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @returns {Object} Saved entity.
 				 */
-				async _create<T extends object>(
-					ctx: Context,
-					params: { entityOrEntities: T | T[]; options?: CreateOptions },
-				): Promise<any> {
-					const { entityOrEntities, options } = params;
-
-					try {
-						let entity = await this.beforeEntityChange('create', entityOrEntities, ctx);
-						// @ts-ignore
-						this.logger.debug(`Validating entity(s) to create: ${entity}`);
-						entity = await this.validateEntity(entity);
-						// @ts-ignore
-						this.logger.debug(`Attempting to create entity: ${entity}`);
-						// @ts-ignore
-						const doc = await this.adapter.create(entity, options);
-						// @ts-ignore
-						this.logger.debug('Transforming created entity...');
-						const transformedDoc = await this.transformDocuments(
-							ctx,
-							entityOrEntities,
-							doc,
-						);
-
-						const json = await this.entityChanged('created', transformedDoc, ctx);
-						return json;
-					} catch (err) {
-						// @ts-ignore
-						this.logger.error(`Failed to create entity: ${err}`);
-						throw new Errors.MoleculerServerError(
-							`Failed to create entity(s): ${JSON.stringify(entityOrEntities)}`,
-							500,
-							'FAILED_TO_CREATE_ENTITY',
-							err,
-						);
-					}
-				},
-				/* _create<T extends object>(
+				_create<T extends object>(
 					// ctx: Context<{ entityOrEntities: T | T[]; options?: CreateOptions }>,
 					ctx: Context,
 					params: { entityOrEntities: T | T[]; options?: CreateOptions },
@@ -3283,7 +3729,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 								err,
 							);
 						});
-				}, */
+				},
 
 				/**
 				 * Create many new entities.
@@ -3295,246 +3741,150 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @returns {Object|Array.<Object>} Saved entity(ies).
 				 */
-				async _insert(ctx: Context, params: any): Promise<object | object[] | undefined> {
+				_insert(ctx: Context, params: any): object | object[] {
 					const { entityOrEntities, options } = params;
-
-					if (!entityOrEntities) {
-						throw new Errors.MoleculerClientError(
-							"Invalid request! The 'params' must contain 'entityOrEntities'!",
-							400,
-						);
-					}
-
-					try {
-						if (Array.isArray(entityOrEntities)) {
-							const entities = await Promise.all(
-								entityOrEntities.map(async (entity: any) =>
-									this.beforeEntityChange('create', entity, ctx),
+					return resolve()
+						.then(async () => {
+							if (isArray(entityOrEntities)) {
+								return (
+									all(
+										entityOrEntities.map(
+											async (entity: any) =>
+												await this.beforeEntityChange(
+													'create',
+													entity,
+													ctx,
+												),
+										),
+									)
+										.then(async (entities) => {
+											// @ts-ignore
+											this.logger!.debug(
+												`Validating entities to create: ${entities}`,
+											);
+											return this.validateEntity(entities);
+										})
+										.then((entities) =>
+											all(
+												entities.map(async (entity: any) =>
+													this.beforeEntityChange('create', entity, ctx),
+												),
+											),
+										)
+										// Apply idField
+										.then((entities) => {
+											// @ts-ignore
+											if (this.settings.idField === '_id') {
+												return entities;
+											}
+											return entities.map((entity) => {
+												// @ts-ignore
+												this.logger!.debug('Transforming entity id...');
+												// @ts-ignore
+												return this.adapter.beforeSaveTransformID(
+													entity,
+													// @ts-ignore
+													this.settings.idField,
+												);
+											});
+										})
+										.then(async (entities) => {
+											// @ts-ignore
+											this.logger!.debug(
+												`Attempting to create entities: ${entities}`,
+											);
+											// @ts-ignore
+											return await this.adapter.insert(entities, options);
+										})
+										.then(
+											async (entities) =>
+												// @ts-ignore
+												await this.adapter.findById(
+													// ctx,
+													Object.entries(entities.insertedIds).map(
+														(key) => key[1],
+													) as any,
+												),
+										)
+										.then(
+											async (entities) =>
+												await this.transformDocuments(
+													ctx,
+													ctx.params,
+													entities,
+												),
+										)
+								);
+							} else if (!isArray(entityOrEntities) && isObject(entityOrEntities)) {
+								return (
+									this.beforeEntityChange('create', entityOrEntities, ctx)
+										.then(
+											async (entity: any) =>
+												await this.validateEntity(entity),
+										)
+										// Apply idField
+										.then((entity: any) =>
+											// @ts-ignore
+											this.adapter.beforeSaveTransformID(
+												entity,
+												// @ts-ignore
+												this.settings.idField,
+											),
+										)
+										.then(async (entity: any) => {
+											// @ts-ignore
+											this.logger!.debug(
+												`Attempting to create entity: ${entity}`,
+											);
+											// @ts-ignore
+											return await this.adapter.create(entity, options);
+										})
+									/* .then(
+											async (entities) =>
+												// @ts-ignore
+												await this.adapter.findById(
+													ctx,
+													entities.insertedId,
+												),
+										) */
+								);
+							}
+							return reject(
+								new Errors.MoleculerClientError(
+									"Invalid request! The 'params' must contain 'entityOrEntities'!",
+									400,
 								),
 							);
+						})
+						.then(async (docs) => await this.transformDocuments(ctx, ctx.params, docs))
+						.then(
+							async (json) =>
+								await this.entityChanged('created', json, ctx)
+									.then(() => json)
+									.catch((err: any) => {
+										// @ts-ignore
+										this.logger.error(
+											`Failed to send entity changed event: ${err}`,
+										);
+										return new Errors.MoleculerServerError(
+											'Failed to send entity changed event',
+											500,
+											'FAILED_TO_CREATE_EVENT',
+											err,
+										);
+									}),
+						)
+						.catch((err: any) => {
 							// @ts-ignore
-							this.logger.debug(`Validating entities to create: ${entities}`);
-							const validatedEntities = await this.validateEntity(entities);
-
-							const transformedEntities = validatedEntities.map((entity: any) => {
-								// @ts-ignore
-								if (this.settings.idField === '_id') {
-									return entity;
-								}
-								// @ts-ignore
-								this.logger.debug('Transforming entity id...');
-								// @ts-ignore
-								return this.adapter.beforeSaveTransformID(
-									entity,
-									// @ts-ignore
-									this.settings.idField,
-								);
-							});
-							// @ts-ignore
-							this.logger.debug(
-								`Attempting to create entities: ${transformedEntities}`,
+							this.logger!.error(`Failed to create entity: ${err}`);
+							return new Errors.MoleculerServerError(
+								`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
+								500,
+								'FAILED_TO_CREATE_ENTITY',
+								err,
 							);
-							// @ts-ignore
-							const insertedEntities = await this.adapter.insert(
-								transformedEntities,
-								options,
-							);
-							// @ts-ignore
-							const foundEntities = await this.adapter.findById(
-								Object.entries(insertedEntities.insertedIds).map(
-									(key) => key[1],
-								) as any,
-							);
-
-							const transformedDocs = await this.transformDocuments(
-								ctx,
-								ctx.params,
-								foundEntities,
-							);
-							return this.entityChanged('created', transformedDocs, ctx);
-						} else if (typeof entityOrEntities === 'object') {
-							const entity = await this.beforeEntityChange(
-								'create',
-								entityOrEntities,
-								ctx,
-							);
-							const validatedEntity = await this.validateEntity(entity);
-							// @ts-ignore
-							const transformedEntity = this.adapter.beforeSaveTransformID(
-								validatedEntity,
-								// @ts-ignore
-								this.settings.idField,
-							);
-							// @ts-ignore
-							this.logger.debug(`Attempting to create entity: ${transformedEntity}`);
-							// @ts-ignore
-							const createdEntity = await this.adapter.create(
-								transformedEntity,
-								options,
-							);
-
-							const transformedDoc = await this.transformDocuments(
-								ctx,
-								ctx.params,
-								createdEntity,
-							);
-							return this.entityChanged('created', transformedDoc, ctx);
-						}
-					} catch (err) {
-						// @ts-ignore
-						this.logger.error(`Failed to create entity: ${err}`);
-						throw new Errors.MoleculerServerError(
-							`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
-							500,
-							'FAILED_TO_CREATE_ENTITY',
-							err,
-						);
-					}
+						});
 				},
-				// _insert(ctx: Context, params: any): object | object[] {
-				// 	const { entityOrEntities, options } = params;
-				// 	return resolve()
-				// 		.then(async () => {
-				// 			if (isArray(entityOrEntities)) {
-				// 				return (
-				// 					all(
-				// 						entityOrEntities.map(
-				// 							async (entity: any) =>
-				// 								await this.beforeEntityChange(
-				// 									'create',
-				// 									entity,
-				// 									ctx,
-				// 								),
-				// 						),
-				// 					)
-				// 						.then(async (entities) => {
-				// 							// @ts-ignore
-				// 							this.logger!.debug(
-				// 								`Validating entities to create: ${entities}`,
-				// 							);
-				// 							return this.validateEntity(entities);
-				// 						})
-				// 						.then((entities) =>
-				// 							all(
-				// 								entities.map(async (entity: any) =>
-				// 									this.beforeEntityChange('create', entity, ctx),
-				// 								),
-				// 							),
-				// 						)
-				// 						// Apply idField
-				// 						.then((entities) => {
-				// 							// @ts-ignore
-				// 							if (this.settings.idField === '_id') {
-				// 								return entities;
-				// 							}
-				// 							return entities.map((entity) => {
-				// 								// @ts-ignore
-				// 								this.logger!.debug('Transforming entity id...');
-				// 								// @ts-ignore
-				// 								return this.adapter.beforeSaveTransformID(
-				// 									entity,
-				// 									// @ts-ignore
-				// 									this.settings.idField,
-				// 								);
-				// 							});
-				// 						})
-				// 						.then(async (entities) => {
-				// 							// @ts-ignore
-				// 							this.logger!.debug(
-				// 								`Attempting to create entities: ${entities}`,
-				// 							);
-				// 							// @ts-ignore
-				// 							return await this.adapter.insert(entities, options);
-				// 						})
-				// 						.then(
-				// 							async (entities) =>
-				// 								// @ts-ignore
-				// 								await this.adapter.findById(
-				// 									// ctx,
-				// 									Object.entries(entities.insertedIds).map(
-				// 										(key) => key[1],
-				// 									) as any,
-				// 								),
-				// 						)
-				// 						.then(
-				// 							async (entities) =>
-				// 								await this.transformDocuments(
-				// 									ctx,
-				// 									ctx.params,
-				// 									entities,
-				// 								),
-				// 						)
-				// 				);
-				// 			} else if (!isArray(entityOrEntities) && isObject(entityOrEntities)) {
-				// 				return (
-				// 					this.beforeEntityChange('create', entityOrEntities, ctx)
-				// 						.then(
-				// 							async (entity: any) =>
-				// 								await this.validateEntity(entity),
-				// 						)
-				// 						// Apply idField
-				// 						.then((entity: any) =>
-				// 							// @ts-ignore
-				// 							this.adapter.beforeSaveTransformID(
-				// 								entity,
-				// 								// @ts-ignore
-				// 								this.settings.idField,
-				// 							),
-				// 						)
-				// 						.then(async (entity: any) => {
-				// 							// @ts-ignore
-				// 							this.logger!.debug(
-				// 								`Attempting to create entity: ${entity}`,
-				// 							);
-				// 							// @ts-ignore
-				// 							return await this.adapter.create(entity, options);
-				// 						})
-				// 					/* .then(
-				// 							async (entities) =>
-				// 								// @ts-ignore
-				// 								await this.adapter.findById(
-				// 									ctx,
-				// 									entities.insertedId,
-				// 								),
-				// 						) */
-				// 				);
-				// 			}
-				// 			return reject(
-				// 				new Errors.MoleculerClientError(
-				// 					"Invalid request! The 'params' must contain 'entityOrEntities'!",
-				// 					400,
-				// 				),
-				// 			);
-				// 		})
-				// 		.then(async (docs) => await this.transformDocuments(ctx, ctx.params, docs))
-				// 		.then(
-				// 			async (json) =>
-				// 				await this.entityChanged('created', json, ctx)
-				// 					.then(() => json)
-				// 					.catch((err: any) => {
-				// 						// @ts-ignore
-				// 						this.logger.error(
-				// 							`Failed to send entity changed event: ${err}`,
-				// 						);
-				// 						return new Errors.MoleculerServerError(
-				// 							'Failed to send entity changed event',
-				// 							500,
-				// 							'FAILED_TO_CREATE_EVENT',
-				// 							err,
-				// 						);
-				// 					}),
-				// 		)
-				// 		.catch((err: any) => {
-				// 			// @ts-ignore
-				// 			this.logger!.error(`Failed to create entity: ${err}`);
-				// 			return new Errors.MoleculerServerError(
-				// 				`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
-				// 				500,
-				// 				'FAILED_TO_CREATE_ENTITY',
-				// 				err,
-				// 			);
-				// 		});
-				// },
 
 				/**
 				 * Get entity by ID.
@@ -3548,112 +3898,74 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
-				async _get(ctx: Context, params: any): Promise<object | object[]> {
+				_get(
+					ctx: Context,
+					// @ts-ignore
+					// key: string | undefined | null = this.settings.idField,
+					params: any,
+				): object | object[] {
 					const id = params.id;
 					let origDoc: any;
 					const shouldMapping = params.mapping === true;
+					return this.getById(/* ctx, */ /* key, */ id, true)
+						.then((doc: any) => {
+							if (!doc) {
+								return Promise.reject(
+									new Errors.MoleculerClientError(
+										'Entity not found',
+										400,
+										'',
+										id,
+									),
+								);
+							}
 
-					const doc = await this.getById(id, true);
-					if (!doc) {
-						throw new Errors.MoleculerClientError('Entity not found', 400, '', id);
-					}
-
-					if (shouldMapping) {
-						origDoc = Array.isArray(doc)
-							? doc.map((d) => cloneDeep(d))
-							: cloneDeep(doc);
-					} else {
-						origDoc = doc;
-					}
-
-					const json = await this.transformDocuments(ctx, params, doc);
-
-					if (params.mapping !== true) {
-						return json;
-					}
-
-					const res: { [key: string]: any } = {};
-					if (Array.isArray(json)) {
-						json.forEach((entityDoc, i) => {
+							if (shouldMapping) {
+								origDoc = isArray(doc)
+									? doc.map((d) => cloneDeep(d))
+									: cloneDeep(doc);
+							} else {
+								origDoc = doc;
+							}
 							// @ts-ignore
-							const entityId = this.adapter.encodeID(origDoc[i]);
-							res[entityId] = entityDoc;
+							return this.transformDocuments(ctx, params, doc);
+						})
+						.then((json: any) => {
+							if (params.mapping !== true) {
+								return json;
+							}
+
+							const res: { [key: string]: any } = {};
+							if (isArray(json)) {
+								json.forEach((doc, i) => {
+									// @ts-ignore
+									const entityId = this.adapter.encodeID(
+										// @ts-ignore
+										// this.adapter.afterRetrieveTransformID(
+										origDoc[i],
+										// 	// @ts-ignore
+										// 	this.settings.idField,
+										// 	// @ts-ignore
+										// )[this.settings.idField],
+									);
+									res[entityId] = doc;
+								});
+							} else if (isObject(json)) {
+								// @ts-ignore
+								const entityId = this.adapter.encodeID(
+									// @ts-ignore
+									// this.adapter.afterRetrieveTransformID(
+									origDoc,
+									// @ts-ignore
+									// 	this.settings.idField,
+									// 	// @ts-ignore
+									// )[this.settings.idField],
+								);
+								res[entityId] = json;
+							}
+							return res;
 						});
-					} else if (typeof json === 'object') {
-						// @ts-ignore
-						const entityId = this.adapter.encodeID(origDoc);
-						res[entityId] = json;
-					}
-					return res;
 				},
-				// _get(
-				// 	ctx: Context,
-				// 	// @ts-ignore
-				// 	// key: string | undefined | null = this.settings.idField,
-				// 	params: any,
-				// ): object | object[] {
-				// 	const id = params.id;
-				// 	let origDoc: any;
-				// 	const shouldMapping = params.mapping === true;
-				// 	return this.getById(/* ctx, */ /* key, */ id, true)
-				// 		.then((doc: any) => {
-				// 			if (!doc) {
-				// 				return Promise.reject(
-				// 					new Errors.MoleculerClientError(
-				// 						'Entity not found',
-				// 						400,
-				// 						'',
-				// 						id,
-				// 					),
-				// 				);
-				// 			}
-
-				// 			if (shouldMapping) {
-				// 				origDoc = isArray(doc)
-				// 					? doc.map((d) => cloneDeep(d))
-				// 					: cloneDeep(doc);
-				// 			} else {
-				// 				origDoc = doc;
-				// 			}
-				// 			// @ts-ignore
-				// 			return this.transformDocuments(ctx, params, doc);
-				// 		})
-				// 		.then((json: any) => {
-				// 			if (params.mapping !== true) {
-				// 				return json;
-				// 			}
-
-				// 			const res: { [key: string]: any } = {};
-				// 			if (isArray(json)) {
-				// 				json.forEach((doc, i) => {
-				// 					// @ts-ignore
-				// 					const entityId = this.adapter.encodeID(
-				// 						// @ts-ignore
-				// 						// this.adapter.afterRetrieveTransformID(
-				// 						origDoc[i],
-				// 						// 	// @ts-ignore
-				// 						// 	this.settings.idField,
-				// 						// 	// @ts-ignore
-				// 						// )[this.settings.idField],
-				// 					);
-				// 					res[entityId] = doc;
-				// 				});
-				// 			} else if (isObject(json)) {
-				// 				// @ts-ignore
-				// 				const entityId = this.adapter.encodeID(
-				// 					// @ts-ignore
-				// 					// this.adapter.afterRetrieveTransformID(
-				// 					origDoc,
-				// 					// @ts-ignore
-				// 					// 	this.settings.idField,
-				// 					// 	// @ts-ignore
-				// 					// )[this.settings.idField],
-				// 				);
-				// 				res[entityId] = json;
-				// 			}
-				// 			return res;
-				// 		});
-				// },
 
 				/**
 				 * Update an entity by ID.
@@ -3667,46 +3979,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
-				async _update(ctx: Context, params: any): Promise<any> {
-					let id: any;
-					try {
-						const update = await this.beforeEntityChange('update', params, ctx);
-						let sets: { [key: string]: any } = {};
-						// Convert fields from params to "$set" update object
-						for (const prop of Object.keys(update)) {
-							// @ts-ignore
-							if (prop === 'id' || prop === this.settings.idField) {
-								id = this.decodeID(update[prop]);
-							} else {
-								sets[prop] = update[prop];
-							}
-						}
-						// @ts-ignore
-						if (this.settings.useDotNotation) {
-							sets = flatten(sets, { safe: true });
-						}
-						// @ts-ignore
-						this.logger.debug(
-							`Updating entity by ID '${id}' with ${JSON.stringify(sets)}`,
-						);
-						// @ts-ignore
-						const doc = await this.adapter.updateById(id, sets);
-
-						const transformedDoc = await this.transformDocuments(ctx, params, doc);
-						const json = await this.entityChanged('updated', transformedDoc, ctx);
-						return json;
-					} catch (error) {
-						// @ts-ignore
-						this.logger.error(`Failed to update: ${error}`);
-						throw new Errors.MoleculerServerError(
-							`Failed to update ${error}`,
-							500,
-							'FAILED_TO_UPDATE',
-							error,
-						);
-					}
-				},
-				/* _update(ctx: Context, params: any): any {
+				_update(ctx: Context, params: any): any {
 					let id: any;
 					// @ts-ignore
 					return this.beforeEntityChange('update', params, ctx)
@@ -3764,7 +4037,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 								error,
 							);
 						});
-				}, */
+				},
 
 				/**
 				 * Remove an entity by ID.
@@ -3776,79 +4049,42 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
-				async _remove(ctx: Context, params: any): Promise<any> {
+				_remove(ctx: Context, params: any): any {
 					// @ts-ignore
 					const id = this.adapter.decodeID(params.id);
 					let entity: any;
-
-					try {
-						entity = await this.getById(id, true);
-						// @ts-ignore
-						await this.beforeEntityChange('remove', entity, ctx);
-						// @ts-ignore
-						const doc = await this.adapter.removeById(id);
-
-						if (doc.deletedCount === 0) {
-							throw new Errors.MoleculerClientError('Entity not found', 400, '', id);
-						}
-
-						// @ts-ignore
-						const transformedEntity = await this.transformDocuments(
-							ctx,
-							params,
-							entity,
-						);
-						// @ts-ignore
-						const json = await this.entityChanged('removed', transformedEntity, ctx);
-
-						return json;
-					} catch (error) {
-						// @ts-ignore
-						this.logger.error(`Failed to remove: ${error}`);
-						throw new Errors.MoleculerServerError(
-							`Failed to remove ${error}`,
-							500,
-							'FAILED_TO_REMOVE',
-							error,
-						);
-					}
+					return (
+						Promise.resolve()
+							.then(async () => {
+								entity = await this.getById(/* ctx, */ /* null, */ id, true);
+								return entity;
+							})
+							// @ts-ignore
+							.then((removeEntity) =>
+								this.beforeEntityChange('remove', removeEntity, ctx),
+							)
+							// @ts-ignore
+							.then(() => this.adapter.removeById(id))
+							.then((doc) => {
+								if (doc.deletedCount === 0) {
+									return Promise.reject(
+										new Errors.MoleculerClientError(
+											'Entity not found',
+											400,
+											'',
+											id,
+										),
+									);
+								}
+								// @ts-ignore
+								return this.transformDocuments(ctx, params, entity).then(
+									(json: any) =>
+										// @ts-ignore
+										this.entityChanged('removed', json, ctx).then(() => json),
+								);
+							})
+					);
 				},
-				// _remove(ctx: Context, params: any): any {
-				// 	// @ts-ignore
-				// 	const id = this.adapter.decodeID(params.id);
-				// 	let entity: any;
-				// 	return (
-				// 		Promise.resolve()
-				// 			.then(async () => {
-				// 				entity = await this.getById(/* ctx, */ /* null, */ id, true);
-				// 				return entity;
-				// 			})
-				// 			// @ts-ignore
-				// 			.then((removeEntity) =>
-				// 				this.beforeEntityChange('remove', removeEntity, ctx),
-				// 			)
-				// 			// @ts-ignore
-				// 			.then(() => this.adapter.removeById(id))
-				// 			.then((doc) => {
-				// 				if (doc.deletedCount === 0) {
-				// 					return Promise.reject(
-				// 						new Errors.MoleculerClientError(
-				// 							'Entity not found',
-				// 							400,
-				// 							'',
-				// 							id,
-				// 						),
-				// 					);
-				// 				}
-				// 				// @ts-ignore
-				// 				return this.transformDocuments(ctx, params, entity).then(
-				// 					(json: any) =>
-				// 						// @ts-ignore
-				// 						this.entityChanged('removed', json, ctx).then(() => json),
-				// 				);
-				// 			})
-				// 	);
-				// },
 			},
 			// #endregion Service Methods
 			// #region Service Lifecycle Events
