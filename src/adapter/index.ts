@@ -803,7 +803,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		};
 
 		const persistEntity = async (entity: any) => {
-			this.logger!.debug('Attempting to Persist created entity: ', entity);
+			this.logger!.debug('Attempting to Persist created entit(y/ies): ', entity);
 			try {
 				await this.em.persist(entity).flush();
 				return entity;
@@ -2191,12 +2191,12 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 *
 	 * @methods
 	 * @param {any} doc - The document to exclude fields from.
-	 * @param {string | any[]} fields - The fields to exclude from the document. This can be a string or an array of strings.
+	 * @param {string | string[]} fields - The fields to exclude from the document. This can be a string or an array of strings.
 	 * @returns {object} The document with the specified fields excluded.
 	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	public excludeFields(doc: object, fields: string | any[]): object {
+	public excludeFields(doc: object, fields: string | string[]): object {
 		if (typeof fields === 'string') {
 			fields = [fields];
 		}
@@ -3006,7 +3006,14 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * List entities by filters and pagination results.
+				 *Defines the `list` action for a service.
+				 *
+				 * This action does the following:
+				 * - Defines cache keys for the action.
+				 * - Defines the RESTful route for the action.
+				 * - Defines the parameters for the action.
+				 * - Defines a handler for the action that sanitizes the parameters and then calls the `_list` method of the service
+				 *  with the context and sanitized parameters.
 				 *
 				 * @actions
 				 * @cached
@@ -3019,7 +3026,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 * @param {String?} search - Search text.
 				 * @param {String|Array<String>} searchFields - Fields for searching.
 				 * @param {Object?} query - Query object. Passes to adapter.
-				 * @returns {Object} List of found entities and count with pagination info.
+				 * @returns {Promise<object>} List of found entities and count with pagination info.
 				 */
 				list: {
 					cache: {
@@ -3074,11 +3081,11 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 							{ type: 'string', optional: true },
 						],
 					},
-					handler(ctx: Context<{ params: ListParams }>): any {
+					async handler(ctx: Context<{ params: ListParams }>): Promise<object> {
 						// @ts-ignore
 						const sanatizedParams = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
-						return this._list(ctx, sanatizedParams);
+						return await this._list(ctx, sanatizedParams);
 					},
 				},
 
@@ -3108,14 +3115,14 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						entityOrEntities: [{ type: 'object' }, { type: 'array' }],
 						options: { type: 'object', optional: true },
 					},
-					handler(
+					async handler(
 						ctx: Context<{ entityOrEntities: object | object[] }, { options?: object }>,
-					): object | object[] {
+					): Promise<object | object[]> {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
 						// return this.adapter.create(ctx, entityOrEntities, options);
-						return this._create(ctx, params);
+						return await this._create(ctx, params);
 					},
 				},
 
@@ -3145,13 +3152,15 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						entityOrEntities: [{ type: 'object' }, { type: 'array' }],
 						options: { type: 'object', optional: true },
 					},
-					handler(
+					async handler(
 						ctx: Context<{ entityOrEntities: object | object[]; options?: object }>,
-					): object | object[] {
+					): Promise<object | object[]> {
+						// @ts-ignore
+						this.logger.debug('Insert action called.');
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
-						return this._insert(ctx, params);
+						return await this._insert(ctx, params);
 					},
 				},
 
@@ -3216,7 +3225,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						],
 						mapping: { type: 'boolean', optional: true },
 					},
-					handler(
+					async handler(
 						ctx: Context<{
 							id: string | number | string[] | number[];
 							populate?: string | string[];
@@ -3225,11 +3234,11 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 							excludeFields?: string | string[];
 							mapping?: boolean;
 						}>,
-					): object | object[] {
+					): Promise<object | object[]> {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
-						return this._get(ctx, /* null, */ params);
+						return await this._get(ctx, /* null, */ params);
 					},
 				},
 
@@ -3258,11 +3267,11 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					params: {
 						id: { type: 'any' },
 					},
-					handler(ctx: Context<{ id: string | number }>): object {
+					async handler(ctx: Context<{ id: string | number }>): Promise<object> {
 						// @ts-ignore
 						const params = this.sanitizeParams(ctx, ctx.params);
 						// @ts-ignore
-						return this._update(ctx, params);
+						return await this._update(ctx, params);
 					},
 				},
 
@@ -3293,9 +3302,9 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						id: [{ type: 'string' }, { type: 'number' }],
 						options: { type: 'object', optional: true },
 					},
-					handler(ctx: Context<{ id: any; options?: object }>): object {
+					async handler(ctx: Context<{ id: any; options?: object }>): Promise<object> {
 						// @ts-ignore
-						return this._remove(ctx, ctx.params);
+						return await this._remove(ctx, ctx.params);
 					},
 				},
 			},
@@ -3306,18 +3315,19 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 			 */
 			methods: {
 				/**
-				 * Establishes a connection using the adapter and calls the `afterConnected` handler in the schema if it exists.
-				 *
 				 * This method does the following:
+				 * - Logs the start of the connection process.
 				 * - Calls the `connect` method of the adapter.
 				 * - After the connection is established, it checks if there is an `afterConnected` function in the schema.
-				 * - If the `afterConnected` function exists, it calls this function.
-				 * - If an error occurs during the execution of the `afterConnected` function, it logs the error.
+				 * - If the `afterConnected` function exists, it logs the start of the `afterConnected` call and then calls this function.
+				 * - If an error occurs during the execution of the `afterConnected` function, it logs the error and throws a `MoleculerServerError`.
+				 * - If an error occurs during the connection process, it throws a `MoleculerServerError`.
 				 *
-				 * @returns {Promise<any>} A promise that resolves when the connection is established and the
+				 * @returns {Promise<void>} A promise that resolves when the connection is established and the
 				 * `afterConnected` function (if it exists) has been called.
 				 *
-				 * @throws {Error} If an error occurs during the execution of the `afterConnected` function, it logs the error and continues.
+				 * @throws {Errors.MoleculerServerError} If an error occurs during the execution of the `afterConnected` function,
+				 * it logs the error and continues.
 				 */
 				async connect(): Promise<void> {
 					try {
@@ -3358,9 +3368,15 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Disconnect from database.
+				 * Disconnects the adapter if the `disconnect` method exists on the adapter.
+				 *
+				 * This method does the following:
+				 * - Checks if the `disconnect` method exists on the adapter.
+				 * - If the `disconnect` method exists, it calls this method.
+				 *
+				 * @returns {void} The result of the `disconnect` method on the adapter, if it exists.
 				 */
-				disconnect(): any {
+				disconnect(): void {
 					// @ts-ignore
 					if (isFunction(this.adapter.disconnect)) {
 						// @ts-ignore
@@ -3369,27 +3385,35 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Sanitize context parameters at `find` action.
+				 * Sanitizes the parameters for a context.
 				 *
-				 * @methods
+				 * This method does the following:
+				 * - Calls the `sanitizeParams` method of the adapter with the provided context and parameters.
 				 *
-				 * @param {Context} ctx - Request context
-				 * @param {Object} params - Request parameters
-				 * @returns {Object} - Sanitized parameters
-				 * @memberof MikroORMDbAdapter
+				 * @param {Context} ctx - The context for which to sanitize the parameters.
+				 * @param {object} params - The parameters to sanitize.
+				 *
+				 * @returns {object} The sanitized parameters.
 				 */
-				sanitizeParams(ctx: any, params: any): any {
+				sanitizeParams(ctx: Context, params: object): object {
 					// @ts-ignore
 					return this.adapter.sanitizeParams(ctx, params);
 				},
 
 				/**
-				 * Get entity(ies) by ID(s).
+				 * Retrieves an item or items by their ID(s) from the adapter.
+				 *
+				 * This method does the following:
+				 * - If `decoding` is true, it decodes the ID(s) using the `decodeID` method of the adapter.
+				 * - Calls the `findById` method of the adapter with the ID(s).
 				 *
 				 * @methods
-				 * @param {any|Array<any>} id - ID or IDs.
-				 * @param {Boolean?} decoding - Need to decode IDs.
-				 * @returns {Promise<object | object[]>} Found entity(ies).
+				 * @param {string | any[]} id - The ID(s) of the item(s) to retrieve.
+				 * @param {boolean?} decoding - Whether to decode the ID(s) before retrieving the item(s).
+				 *
+				 * @returns {Promise<object | object[]>} A promise that resolves to the retrieved item(s).
+				 *
+				 * @throws {Error} If an error occurs during the retrieval of the item(s), it throws an error.
 				 */
 				async getById(id: string | any[], decoding: boolean): Promise<object | object[]> {
 					// @ts-ignore
@@ -3412,38 +3436,58 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				}, */
 
 				/**
-				 * Call before entity lifecycle events
+				 * Performs operations before an entity change.
+				 *
+				 * This method does the following:
+				 * - Calls the `beforeEntityChange` method of the adapter with the provided type, entity, and context.
 				 *
 				 * @methods
-				 * @param {String} type
-				 * @param {Object} entity
-				 * @param {Context} ctx
-				 * @returns {Promise}
+				 * @param {string | undefined} type - The type of the entity change.
+				 * @param {object} entity - The entity that is about to change.
+				 * @param {Context} ctx - The context for the entity change.
+				 *
+				 * @returns {Promise<any>} The result of the `beforeEntityChange` method on the adapter.
 				 */
-				beforeEntityChange(type: string | undefined, entity: any, ctx: any): any {
+				async beforeEntityChange(
+					type: string | undefined,
+					entity: object,
+					ctx: Context,
+				): Promise<any> {
 					// @ts-ignore
-					return this.adapter.beforeEntityChange(type, entity, ctx);
+					return await this.adapter.beforeEntityChange(type, entity, ctx);
 				},
 
 				/**
-				 * Clear the cache & call entity lifecycle events
+				 * Notifies the adapter that an entity has changed.
+				 *
+				 * This method does the following:
+				 * - Calls the `entityChanged` method of the adapter with the provided type, entity, and context.
 				 *
 				 * @methods
-				 * @param {String} type
-				 * @param {Object|Array<Object>|Number} json
-				 * @param {Context} ctx
-				 * @returns {Promise}
+				 * @param {string | undefined} type - The type of the entity change.
+				 * @param {object | object[] | number} entity - The entity that has changed.
+				 * @param {Context} ctx - The context for the entity change.
+				 *
+				 * @returns {Promise<any>} A promise that resolves to the result of the `entityChanged` method on the adapter.
 				 */
-				entityChanged(type: string | undefined, json: any, ctx: any): any {
+				async entityChanged(
+					type: string | undefined,
+					entity: object | object[] | number,
+					ctx: Context,
+				): Promise<any> {
 					// @ts-ignore
-					return this.adapter.entityChanged(type, json, ctx);
+					return await this.adapter.entityChanged(type, entity, ctx);
 				},
 
 				/**
-				 * Clear cached entities
+				 * Clears the cache for this service.
+				 *
+				 * This method does the following:
+				 * - Emits a `cache.clean` event for this service.
+				 * - If a cacher is available, it calls the `clean` method of the cacher with a pattern that matches all cache entries for this service.
 				 *
 				 * @methods
-				 * @returns {Promise}
+				 * @returns {any} The result of the `clean` method on the cacher, if a cacher is available.
 				 */
 				clearCache(): any {
 					// @ts-ignore
@@ -3466,83 +3510,127 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				}, */
 
 				/**
-				 * Transform the fetched documents
+				 * Transforms documents using the adapter.
+				 *
+				 * This method does the following:
+				 * - Calls the `transformDocuments` method of the adapter with the provided context, parameters, and documents.
+				 *
 				 * @methods
-				 * @param {Context} ctx
-				 * @param {Object} 	params
-				 * @param {Array|Object} docs
-				 * @returns {Array|Object}
+				 * @param {Context} ctx - The context for the transformation.
+				 * @param {object} params - The parameters for the transformation.
+				 * @param {object | object[]} docs - The documents to transform.
+				 *
+				 * @returns {Promise<any[] | object>} A promise that resolves to the transformed documents.
 				 */
-				transformDocuments(ctx: Context, params: any, docs: any): any {
+				async transformDocuments(
+					ctx: Context,
+					params: object,
+					docs: object | object[],
+				): Promise<any[] | object> {
 					// @ts-ignore
-					return this.adapter.transformDocuments(ctx, params, docs);
+					return await this.adapter.transformDocuments(ctx, params, docs);
 				},
 
 				/**
-				 * Filter fields in the entity object
+				 * Filters the fields of a document.
 				 *
-				 * @param {Object} 	doc
-				 * @param {Array<String>} 	fields	Filter properties of model.
-				 * @returns	{Object}
+				 * This method does the following:
+				 * - Calls the `filterFields` method of the adapter with the provided document and fields.
+				 *
+				 * @methods
+				 * @param {object} doc - The document whose fields to filter.
+				 * @param {string | string[]} fields - The fields to include in the filtered document.
+				 *
+				 * @returns {object} The filtered document.
 				 */
-				filterFields(doc: any, fields: any): any {
+				filterFields(doc: object, fields: string | string[]): object {
 					// @ts-ignore
 					return this.adapter.filterFields(doc, fields);
 				},
 
 				/**
-				 * Exclude fields in the entity object
+				 * Excludes specified fields from a document.
 				 *
-				 * @param {Object} 	doc
-				 * @param {Array<String>} 	fields	Exclude properties of model.
-				 * @returns	{Object}
+				 * This method does the following:
+				 * - Calls the `excludeFields` method of the adapter with the provided document and fields.
+				 *
+				 * @methods
+				 * @param {object} doc - The document from which to exclude fields.
+				 * @param {string | string[]} fields - The field or fields to exclude from the document.
+				 *
+				 * @returns {object} The document with the specified fields excluded.
 				 */
-				excludeFields(doc: any, fields: string | any[]): any {
+				excludeFields(doc: object, fields: string | string[]): object {
 					// @ts-ignore
 					return this.adapter.excludeFields(doc, fields);
 				},
 
 				/**
-				 * Authorize the required field list. Remove fields which is not exist in the `this.settings.fields`
+				 * Authorizes the specified fields.
 				 *
-				 * @param {Array} askedFields
-				 * @returns {Array}
+				 * This method does the following:
+				 * - Calls the `authorizeFields` method of the adapter with the provided fields.
+				 *
+				 * @methods
+				 * @param {string[]} askedFields - The fields to authorize.
+				 *
+				 * @returns {string[]} The authorized fields.
 				 */
-				authorizeFields(askedFields: any): any {
+				authorizeFields(askedFields: string[]): string[] {
 					// @ts-ignore
 					return this.adapter.authorizeFields(askedFields);
 				},
 
 				/**
-				 * Populate documents.
+				 * Populates the specified fields in the documents.
 				 *
-				 * @param {Context} 		ctx
-				 * @param {Array|Object} 	docs
-				 * @param {Array?}			populateFields
-				 * @returns	{Promise}
+				 * This method does the following:
+				 * - Calls the `populateDocs` method of the adapter with the provided context, documents, and fields to populate.
+				 *
+				 * @methods
+				 * @param {Context} ctx - The context for the population.
+				 * @param {object | object[]} docs - The documents in which to populate the fields.
+				 * @param {string[]} populateFields - The fields to populate in the documents.
+				 *
+				 * @returns {Promise<object | object[]>} A promise that resolves to the documents with the specified fields populated.
 				 */
-				populateDocs(ctx: Context, docs: any, populateFields: any) {
+				async populateDocs(
+					ctx: Context,
+					docs: object | object[],
+					populateFields?: string[],
+				): Promise<object | object[]> {
 					// @ts-ignore
-					return this.adapter.populateDocs(ctx, docs, populateFields);
+					return await this.adapter.populateDocs(ctx, docs, populateFields);
 				},
 
 				/**
-				 * Validate an entity by validator.
+				 * Validates an entity or entities.
+				 *
+				 * This method does the following:
+				 * - Calls the `validateEntity` method of the adapter with the provided entity or entities.
+				 *
 				 * @methods
-				 * @param {Object} entity
-				 * @returns {Promise}
+				 * @param {object | object[]} entity - The entity or entities to validate.
+				 *
+				 * @returns {Promise<object | object[]>} A promise that resolves to the validated entity or entities.
+				 *
+				 * @throws {Error} If an error occurs during the validation of the entity or entities, it throws an error.
 				 */
-				validateEntity(entity: any) {
+				async validateEntity(entity: object | object[]): Promise<object | object[]> {
 					// @ts-ignore
-					return this.adapter.validateEntity(entity);
+					return await this.adapter.validateEntity(entity);
 				},
 
 				/**
-				 * Encode ID of entity.
+				 * Encodes an ID.
+				 *
+				 * This method does the following:
+				 * - Calls the `encodeID` method of the adapter with the provided ID.
 				 *
 				 * @methods
-				 * @param {any} id
-				 * @returns {any}
+				 * @param {any} id - The ID to encode.
+				 *
+				 * @returns {any} The encoded ID.
 				 */
 				encodeID(id: any): any {
 					// @ts-ignore
@@ -3550,11 +3638,15 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Decode ID of entity.
+				 * Decodes an ID.
+				 *
+				 * This method does the following:
+				 * - Calls the `decodeID` method of the adapter with the provided ID.
 				 *
 				 * @methods
-				 * @param {any} id
-				 * @returns {any}
+				 * @param {any} id - The ID to decode.
+				 *
+				 * @returns {any} The decoded ID.
 				 */
 				decodeID(id: any): any {
 					// @ts-ignore
@@ -3562,18 +3654,28 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Find entities by params.
+				 * Finds documents based on the provided context.
+				 *
+				 * This method does the following:
+				 * - Sanitizes the parameters from the context.
+				 * - If a `where` clause is present in the parameters, it calls the `find` method of the adapter with the `where` clause and options,
+				 * transforms the found documents, and handles any errors.
+				 * - If an `options` clause is present in the parameters, it calls the `find` method of the adapter with the parameters and options,
+				 * transforms the found documents, and handles any errors.
+				 *
 				 * Params should be an object with entity property or an object with `where` query.
 				 * e.g. `{ id: '123456' }` or `{ where: [12345,123456]}` or
 				 * {where: {"$and":[{"id":{"$in":[12345,123456]}}]}}
 				 * Options property is optional.
 				 *
 				 * @methods
+				 * @param {Context<FilterQuery<T> | { where?: FilterQuery<T>; options?: FindOptions<T, P> }>} ctx - The context for the find operation.
 				 *
-				 * @param {Context} ctx - Context instance.
-				 * @param {Object?} params - Parameters.
+				 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>} A promise that resolves to the found documents, either as a single document or an array
+				 * of documents.
 				 *
-				 * @returns {Promise<T | T[]>} List of found entities.
+				 * @throws {moleculer.Errors.MoleculerServerError} If an error occurs during the find operation, it throws a MoleculerServerError
+				 * with a message that includes the error, a status code of 500, and an error code of 'FAILED_TO_FIND_ONE_BY_OPTIONS'.
 				 */
 				async _find<T extends object, P extends string>(
 					ctx: Context<
@@ -3582,7 +3684,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				): Promise<Loaded<T, P> | Loaded<T, P>[]> {
 					// @ts-ignore
 					this.logger.debug('Sanatizing paramaters...');
-					const params = this.sanitizeParams(ctx, ctx.params);
+					const params: { [key: string]: any } = this.sanitizeParams(ctx, ctx.params);
 
 					const wherePresent = async () =>
 						// @ts-ignore
@@ -3645,16 +3747,19 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * Get count of entities by query.
+				 * Counts the number of documents that match the provided parameters.
+				 *
+				 * This method does the following:
+				 * - Removes pagination parameters (`limit` and `offset`) from the provided parameters.
+				 * - Calls the `count` method of the adapter with the provided parameters.
 				 *
 				 * @methods
+				 * @param {Context} ctx - The context for the count operation.
+				 * @param {Object?} params - The parameters for the count operation.
 				 *
-				 * @param {Context} ctx - Context instance.
-				 * @param {Object?} params - Parameters.
-				 *
-				 * @returns {Number} Count of found entities.
+				 * @returns {number} The number of documents that match the provided parameters.
 				 */
-				_count(ctx: Context, params: any): number {
+				_count(ctx: Context, params?: any): number {
 					// Remove pagination params
 					if (params?.limit) {
 						params.limit = null;
@@ -3667,376 +3772,226 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				},
 
 				/**
-				 * List entities by filters and pagination results.
+				 * Lists documents based on the provided context and parameters.
+				 *
+				 * This method does the following:
+				 * - Calls the `list` method of the adapter with the provided context and parameters.
 				 *
 				 * @methods
+				 * @param {Context} ctx - The context for the list operation.
+				 * @param {ListParams} params - The parameters for the list operation.
 				 *
-				 * @param {Context} ctx - Context instance.
-				 * @param {Object?} params - Parameters.
-				 *
-				 * @returns {Object} List of found entities and count.
+				 * @returns {Promise<object>} A promise that resolves to the list of documents.
 				 */
-				_list(ctx: Context, params: ListParams): any {
+				async _list(ctx: Context, params: ListParams): Promise<object> {
 					// @ts-ignore
-					return this.adapter.list(ctx, params);
+					return await this.adapter.list(ctx, params);
 				},
 
 				/**
-				 * Create a new entity.
+				 * Creates a new entity or entities.
+				 *
+				 * This method does the following:
+				 * - Calls the `beforeEntityChange` method with the 'create' action and the provided entity or entities.
+				 * - Validates the entity or entities.
+				 * - Calls the `create` method of the adapter with the entity or entities and any provided options.
+				 * - Transforms the created documents.
+				 * - Calls the `entityChanged` method with the 'created' action and the transformed documents.
 				 *
 				 * @methods
+				 * @param {Context} ctx - The context for the create operation.
+				 * @param {object} params - The parameters for the create operation, which include the entity or entities to create and any options.
 				 *
-				 * @param {Context} ctx - Context instance.
-				 * @param {Object?} params - Parameters.
+				 * @returns {Promise<object | object[]>} A promise that resolves to the created entity or entities.
 				 *
-				 * @returns {Object} Saved entity.
+				 * @throws {moleculer.Errors.MoleculerServerError} If an error occurs during the create operation, it throws a MoleculerServerError
+				 * with a message that includes the error, a status code of 500, and an error code of 'FAILED_TO_CREATE_ENTITY'.
 				 */
-				_create<T extends object>(
-					// ctx: Context<{ entityOrEntities: T | T[]; options?: CreateOptions }>,
+				async _create<T extends object>(
 					ctx: Context,
 					params: { entityOrEntities: T | T[]; options?: CreateOptions },
-				): any {
-					// const { entityOrEntities, options } = ctx.params;
+				): Promise<object | object[]> {
 					const { entityOrEntities, options } = params;
-					return this.beforeEntityChange('create', entityOrEntities, ctx)
-						.then(async (entity: any) => {
-							// @ts-ignore
-							this.logger.debug(`Validating entity(s) to create: ${entity}`);
-							return await this.validateEntity(entity);
-						})
-						.then(async (entity: any) => {
-							// @ts-ignore
-							this.logger.debug(`Attempting to create entity: ${entity}`);
-							// @ts-ignore
-							return await this.adapter.create(entity, options);
-						})
-						.then(async (doc: any) => {
-							// @ts-ignore
-							this.logger.debug('Transforming created entity...');
-							return await this.transformDocuments(ctx, entityOrEntities, doc);
-						})
-						.then(
-							async (json: any) =>
-								await this.entityChanged('created', json, ctx).then(() => json),
-						)
-						.catch((err: any) => {
-							// @ts-ignore
-							this.logger.error(`Failed to create entity: ${err}`);
-							return new Errors.MoleculerServerError(
-								`Failed to create entity(s): ${JSON.stringify(entityOrEntities)}`,
-								500,
-								'FAILED_TO_CREATE_ENTITY',
-								err,
-							);
-						});
+					try {
+						let entity = await this.beforeEntityChange('create', entityOrEntities, ctx);
+						// @ts-ignore
+						this.logger.debug(`Validating entity(s) to create: ${entity}`);
+						entity = await this.validateEntity(entity);
+						// @ts-ignore
+						this.logger.debug(`Attempting to create entity: ${entity}`);
+						// @ts-ignore
+						const doc = await this.adapter.create(entity, options);
+						// @ts-ignore
+						this.logger.debug('Transforming created entity...');
+						const json = await this.transformDocuments(ctx, entityOrEntities, doc);
+						await this.entityChanged('created', json, ctx);
+						return json;
+					} catch (err) {
+						// @ts-ignore
+						this.logger.error(`Failed to create entity: ${err}`);
+						throw new Errors.MoleculerServerError(
+							`Failed to create entity(s): ${JSON.stringify(entityOrEntities)}`,
+							500,
+							'FAILED_TO_CREATE_ENTITY',
+							err,
+						);
+					}
 				},
 
 				/**
-				 * Create many new entities.
+				 * Inserts a new entity or entities.
+				 *
+				 * This method does the following:
+				 * - Calls the `_create` method with the provided context, entity or entities, and options.
 				 *
 				 * @methods
+				 * @param {Context} ctx - The context for the insert operation.
+				 * @param {object} params - The parameters for the insert operation, which include the entity or entities to insert and any options.
 				 *
-				 * @param {Context} ctx - Context instance.
-				 * @param {Object?} params - Parameters.
+				 * @returns {Promise<object | object[]>} A promise that resolves to the inserted entity or entities.
 				 *
-				 * @returns {Object|Array.<Object>} Saved entity(ies).
+				 * @throws {moleculer.Errors.MoleculerServerError} If an error occurs during the insert operation, it throws a MoleculerServerError
+				 * with a message that includes the error, a status code of 500, and an error code of 'FAILED_TO_INSERT_ENTITY'.
 				 */
-				_insert(ctx: Context, params: any): object | object[] {
-					const { entityOrEntities, options } = params;
-					return resolve()
-						.then(async () => {
-							if (isArray(entityOrEntities)) {
-								return (
-									all(
-										entityOrEntities.map(
-											async (entity: any) =>
-												await this.beforeEntityChange(
-													'create',
-													entity,
-													ctx,
-												),
-										),
-									)
-										.then(async (entities) => {
-											// @ts-ignore
-											this.logger!.debug(
-												`Validating entities to create: ${entities}`,
-											);
-											return this.validateEntity(entities);
-										})
-										.then((entities) =>
-											all(
-												entities.map(async (entity: any) =>
-													this.beforeEntityChange('create', entity, ctx),
-												),
-											),
-										)
-										// Apply idField
-										.then((entities) => {
-											// @ts-ignore
-											if (this.settings.idField === '_id') {
-												return entities;
-											}
-											return entities.map((entity) => {
-												// @ts-ignore
-												this.logger!.debug('Transforming entity id...');
-												// @ts-ignore
-												return this.adapter.beforeSaveTransformID(
-													entity,
-													// @ts-ignore
-													this.settings.idField,
-												);
-											});
-										})
-										.then(async (entities) => {
-											// @ts-ignore
-											this.logger!.debug(
-												`Attempting to create entities: ${entities}`,
-											);
-											// @ts-ignore
-											return await this.adapter.insert(entities, options);
-										})
-										.then(
-											async (entities) =>
-												// @ts-ignore
-												await this.adapter.findById(
-													// ctx,
-													Object.entries(entities.insertedIds).map(
-														(key) => key[1],
-													) as any,
-												),
-										)
-										.then(
-											async (entities) =>
-												await this.transformDocuments(
-													ctx,
-													ctx.params,
-													entities,
-												),
-										)
-								);
-							} else if (!isArray(entityOrEntities) && isObject(entityOrEntities)) {
-								return (
-									this.beforeEntityChange('create', entityOrEntities, ctx)
-										.then(
-											async (entity: any) =>
-												await this.validateEntity(entity),
-										)
-										// Apply idField
-										.then((entity: any) =>
-											// @ts-ignore
-											this.adapter.beforeSaveTransformID(
-												entity,
-												// @ts-ignore
-												this.settings.idField,
-											),
-										)
-										.then(async (entity: any) => {
-											// @ts-ignore
-											this.logger!.debug(
-												`Attempting to create entity: ${entity}`,
-											);
-											// @ts-ignore
-											return await this.adapter.create(entity, options);
-										})
-									/* .then(
-											async (entities) =>
-												// @ts-ignore
-												await this.adapter.findById(
-													ctx,
-													entities.insertedId,
-												),
-										) */
-								);
-							}
-							return reject(
-								new Errors.MoleculerClientError(
-									"Invalid request! The 'params' must contain 'entityOrEntities'!",
-									400,
-								),
-							);
-						})
-						.then(async (docs) => await this.transformDocuments(ctx, ctx.params, docs))
-						.then(
-							async (json) =>
-								await this.entityChanged('created', json, ctx)
-									.then(() => json)
-									.catch((err: any) => {
-										// @ts-ignore
-										this.logger.error(
-											`Failed to send entity changed event: ${err}`,
-										);
-										return new Errors.MoleculerServerError(
-											'Failed to send entity changed event',
-											500,
-											'FAILED_TO_CREATE_EVENT',
-											err,
-										);
-									}),
-						)
-						.catch((err: any) => {
-							// @ts-ignore
-							this.logger!.error(`Failed to create entity: ${err}`);
-							return new Errors.MoleculerServerError(
-								`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
-								500,
-								'FAILED_TO_CREATE_ENTITY',
-								err,
-							);
-						});
-				},
-
-				/**
-				 * Get entity by ID.
-				 *
-				 * @methods
-				 *
-				 * @param {Context} ctx - Context instance.
-				 * @param {Object?} params - Parameters.
-				 *
-				 * @returns {Object|Array<Object>} Found entity(ies).
-				 *
-				 * @throws {EntityNotFoundError} - 404 Entity not found
-				 */
-				_get(
+				async _insert(
 					ctx: Context,
-					// @ts-ignore
-					// key: string | undefined | null = this.settings.idField,
-					params: any,
-				): object | object[] {
+					params: { entityOrEntities: object | object[]; options: object },
+				): Promise<object | object[]> {
+					const { entityOrEntities, options } = params;
+					try {
+						const records = await this._create(ctx, { entityOrEntities, options });
+						return records;
+					} catch (err) {
+						// @ts-ignore
+						this.logger.error(`Failed to insert entity: ${err}`);
+						throw new Errors.MoleculerServerError(
+							`Failed to insert entit(/ies): ${JSON.stringify(entityOrEntities)}`,
+							500,
+							'FAILED_TO_INSERT_ENTITY',
+							err,
+						);
+					}
+				},
+
+				/**
+				 * Retrieves an entity by its ID.
+				 *
+				 * This method does the following:
+				 * - Calls the `getById` method with the provided ID(s).
+				 * - If the entity is not found, it throws a MoleculerClientError.
+				 * - If the `mapping` parameter is true, it clones the entity.
+				 * - Calls the `transformDocuments` method with the context, parameters, and entity.
+				 * - If the `mapping` parameter is not true, it returns the transformed documents.
+				 * - If the `mapping` parameter is true, it encodes the ID of the original document and maps it to the transformed document in the result.
+				 *
+				 * @methods
+				 * @param {Context} ctx - The context for the get operation.
+				 * @param {object} params - The parameters for the get operation, which include the ID of the entity to get and whether
+				 * to map the result.
+				 *
+				 * @returns {Promise<object>} A promise that resolves to the retrieved entity or entities.
+				 *
+				 * @throws {Errors.MoleculerClientError} If the entity is not found, it throws a MoleculerClientError with a message
+				 * of 'Entity not found', a status code of 400, and the ID of the entity.
+				 */
+				async _get(ctx: Context, params: any): Promise<object> {
 					const id = params.id;
 					let origDoc: any;
 					const shouldMapping = params.mapping === true;
-					return this.getById(/* ctx, */ /* key, */ id, true)
-						.then((doc: any) => {
-							if (!doc) {
-								return Promise.reject(
-									new Errors.MoleculerClientError(
-										'Entity not found',
-										400,
-										'',
-										id,
-									),
-								);
-							}
 
-							if (shouldMapping) {
-								origDoc = isArray(doc)
-									? doc.map((d) => cloneDeep(d))
-									: cloneDeep(doc);
-							} else {
-								origDoc = doc;
-							}
+					const entity = await this.getById(id, true);
+					if (!entity) {
+						throw new Errors.MoleculerClientError('Entity not found', 400, '', id);
+					}
+
+					if (shouldMapping) {
+						origDoc = Array.isArray(entity)
+							? entity.map((d) => cloneDeep(d))
+							: cloneDeep(entity);
+					} else {
+						origDoc = entity;
+					}
+
+					const json = await this.transformDocuments(ctx, params, entity);
+
+					if (params.mapping !== true) {
+						return json;
+					}
+
+					const res: { [key: string]: any } = {};
+					if (Array.isArray(json)) {
+						json.forEach((doc, i) => {
 							// @ts-ignore
-							return this.transformDocuments(ctx, params, doc);
-						})
-						.then((json: any) => {
-							if (params.mapping !== true) {
-								return json;
-							}
-
-							const res: { [key: string]: any } = {};
-							if (isArray(json)) {
-								json.forEach((doc, i) => {
-									// @ts-ignore
-									const entityId = this.adapter.encodeID(
-										// @ts-ignore
-										// this.adapter.afterRetrieveTransformID(
-										origDoc[i],
-										// 	// @ts-ignore
-										// 	this.settings.idField,
-										// 	// @ts-ignore
-										// )[this.settings.idField],
-									);
-									res[entityId] = doc;
-								});
-							} else if (isObject(json)) {
-								// @ts-ignore
-								const entityId = this.adapter.encodeID(
-									// @ts-ignore
-									// this.adapter.afterRetrieveTransformID(
-									origDoc,
-									// @ts-ignore
-									// 	this.settings.idField,
-									// 	// @ts-ignore
-									// )[this.settings.idField],
-								);
-								res[entityId] = json;
-							}
-							return res;
+							const entityId = this.adapter.encodeID(origDoc[i]);
+							res[entityId] = doc;
 						});
+					} else if (typeof json === 'object') {
+						// @ts-ignore
+						const entityId = this.adapter.encodeID(origDoc);
+						res[entityId] = json;
+					}
+					return res;
 				},
 
 				/**
-				 * Update an entity by ID.
-				 * > After update, clear the cache & call lifecycle events.
+				 * Updates an entity by its ID.
+				 *
+				 * This method does the following:
+				 * - Calls the `beforeEntityChange` method with the 'update' action and the provided parameters.
+				 * - Converts the fields from the parameters to a "$set" update object.
+				 * - If the `useDotNotation` setting is true, it flattens the "$set" update object.
+				 * - Logs the update operation.
+				 * - Calls the `updateById` method of the adapter with the ID and the "$set" update object.
+				 * - Transforms the updated document.
+				 * - Calls the `entityChanged` method with the 'updated' action and the transformed document.
+				 * - If an error occurs during the update operation, it logs the error and throws a MoleculerServerError.
 				 *
 				 * @methods
+				 * @param {Context} ctx - The context for the update operation.
+				 * @param {object} params - The parameters for the update operation, which include the ID of the entity to update and the fields to update.
 				 *
-				 * @param {Context} ctx - Context instance.
-				 * @param {Object?} params - Parameters.
-				 * @returns {Object} Updated entity.
+				 * @returns {Promise<object>} A promise that resolves to the updated entity.
 				 *
-				 * @throws {EntityNotFoundError} - 404 Entity not found
+				 * @throws {Errors.MoleculerServerError} If an error occurs during the update operation, it throws a MoleculerServerError with a
+				 * message that includes the error, a status code of 500, and an error code of 'FAILED_TO_UPDATE'.
 				 */
-				_update(ctx: Context, params: any): any {
+				async _update(ctx: Context, params: object): Promise<object> {
 					let id: any;
-					// @ts-ignore
-					return this.beforeEntityChange('update', params, ctx)
-						.then(async (update: any) => {
-							let sets: { [key: string]: any } = {};
-							// Convert fields from params to "$set" update object
-							for (const prop of Object.keys(update)) {
-								// @ts-ignore
-								if (prop === 'id' || prop === this.settings.idField) {
-									// @ts-ignore
-									id = this.decodeID(update[prop]);
-								} else {
-									sets[prop] = update[prop];
-								}
+					try {
+						const update = await this.beforeEntityChange('update', params, ctx);
+						let sets: { [key: string]: any } = {};
+						// Convert fields from params to "$set" update object
+						for (const prop of Object.keys(update)) {
+							// @ts-ignore
+							if (prop === 'id' || prop === this.settings.idField) {
+								id = this.decodeID(update[prop]);
+							} else {
+								sets[prop] = update[prop];
 							}
-							// @ts-ignore
-							if (this.settings.useDotNotation) {
-								sets = flatten(sets, { safe: true });
-							}
-							return sets;
-						})
-						.then(async (entity: any) => {
-							// @ts-ignore
-							this.logger.debug(
-								`Updating entity by ID '${id}' with ${JSON.stringify(entity)}`,
-							);
-							// @ts-ignore
-							return await this.adapter.updateById(id, entity);
-						})
-						.then(async (doc: any) => this.transformDocuments(ctx, params, doc))
-						.then((json: any) =>
-							// @ts-ignore
-							this.entityChanged('updated', json, ctx)
-								.then(() => json)
-								.catch((err: any) => {
-									// @ts-ignore
-									this.logger.error(
-										`Failed to send entity changed event: ${err}`,
-									);
-									return new Errors.MoleculerServerError(
-										'Failed to send entity changed event',
-										500,
-										'FAILED_TO_CREATE_EVENT',
-										err,
-									);
-								}),
-						)
-						.catch((error: any) => {
-							// @ts-ignore
-							this.logger.error(`Failed to update: ${error}`);
-							return new Errors.MoleculerServerError(
-								`Failed to update ${error}`,
-								500,
-								'FAILED_TO_UPDATE',
-								error,
-							);
-						});
+						}
+						// @ts-ignore
+						if (this.settings.useDotNotation) {
+							sets = flatten(sets, { safe: true });
+						}
+						// @ts-ignore
+						this.logger.debug(
+							`Updating entity by ID '${id}' with ${JSON.stringify(sets)}`,
+						);
+						// @ts-ignore
+						const doc = await this.adapter.updateById(id, sets);
+						const transformedDoc = await this.transformDocuments(ctx, params, doc);
+						const json = await this.entityChanged('updated', transformedDoc, ctx);
+						return json;
+					} catch (error) {
+						// @ts-ignore
+						this.logger.error(`Failed to update: ${error}`);
+						throw new Errors.MoleculerServerError(
+							`Failed to update ${error}`,
+							500,
+							'FAILED_TO_UPDATE',
+							error,
+						);
+					}
 				},
 
 				/**
@@ -4049,41 +4004,22 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @throws {EntityNotFoundError} - 404 Entity not found
 				 */
-				_remove(ctx: Context, params: any): any {
+				async _remove(ctx: Context, params: any): Promise<any> {
 					// @ts-ignore
 					const id = this.adapter.decodeID(params.id);
-					let entity: any;
-					return (
-						Promise.resolve()
-							.then(async () => {
-								entity = await this.getById(/* ctx, */ /* null, */ id, true);
-								return entity;
-							})
-							// @ts-ignore
-							.then((removeEntity) =>
-								this.beforeEntityChange('remove', removeEntity, ctx),
-							)
-							// @ts-ignore
-							.then(() => this.adapter.removeById(id))
-							.then((doc) => {
-								if (doc.deletedCount === 0) {
-									return Promise.reject(
-										new Errors.MoleculerClientError(
-											'Entity not found',
-											400,
-											'',
-											id,
-										),
-									);
-								}
-								// @ts-ignore
-								return this.transformDocuments(ctx, params, entity).then(
-									(json: any) =>
-										// @ts-ignore
-										this.entityChanged('removed', json, ctx).then(() => json),
-								);
-							})
-					);
+					const entity = await this.getById(id, true);
+					if (!entity) {
+						throw new Errors.MoleculerClientError('Entity not found', 400, '', id);
+					}
+					await this.beforeEntityChange('remove', entity, ctx);
+					// @ts-ignore
+					const doc = await this.adapter.removeById(id);
+					if (doc.deletedCount === 0) {
+						throw new Errors.MoleculerClientError('Entity not found', 400, '', id);
+					}
+					const json = await this.transformDocuments(ctx, params, entity);
+					await this.entityChanged('removed', json, ctx);
+					return json;
 				},
 			},
 			// #endregion Service Methods
@@ -4119,42 +4055,6 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					};
 				}
 			},
-			/* created() {
-				// Compatibility with < 0.4
-				if (isString(this.settings.fields)) {
-					this.settings.fields = this.settings.fields.split(/\s+/);
-				}
-
-				if (isString(this.settings.excludeFields)) {
-					this.settings.excludeFields = this.settings.excludeFields.split(/\s+/);
-				}
-
-				this.adapter = this.schema.adapter;
-
-				this.adapter.init(this.broker, this);
-
-				// Transform entity validation schema to checker function
-				if (
-					this.broker.validator &&
-					isObject(this.settings.entityValidator) &&
-					!isFunction(this.settings.entityValidator)
-				) {
-					const check = this.broker.validator.compile(this.settings.entityValidator);
-					this.settings.entityValidator = async (entity: any) => {
-						let res = check(entity);
-						if (check.async === true || res.then instanceof Function) {
-							res = await res;
-						}
-						if (res === true) {
-							return Promise.resolve();
-						} else {
-							return Promise.reject(
-								new Errors.ValidationError('Entity validation error!', '', res),
-							);
-						}
-					};
-				}
-			}, */
 
 			/**
 			 * Service started lifecycle event handler
@@ -4175,36 +4075,13 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 					throw new Error('Please set the store adapter in schema!');
 				}
 			},
-			// async started() {
-			// 	if (this.adapter) {
-			// 		// eslint-disable-next-line no-shadow
-			// 		return new Promise((resolve) => {
-			// 			const connecting = () => {
-			// 				this.connect()
-			// 					.then(resolve)
-			// 					.catch((err: any) => {
-			// 						this.logger.error('Connection error!', err);
-			// 						setTimeout(() => {
-			// 							this.logger.warn('Reconnecting...');
-			// 							connecting();
-			// 						}, 1000);
-			// 					});
-			// 			};
-
-			// 			connecting();
-			// 		});
-			// 	}
-
-			// 	/* istanbul ignore next */
-			// 	return Promise.reject(new Error('Please set the store adapter in schema!'));
-			// },
 
 			/**
 			 * Service stopped lifecycle event handler
 			 */
-			stopped() {
+			async stopped() {
 				if (this.adapter) {
-					return this.adapter.disconnect();
+					return await this.adapter.disconnect();
 				}
 			},
 			// #endregion Service Lifecycle Events
