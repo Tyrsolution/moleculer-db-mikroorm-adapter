@@ -32,6 +32,13 @@
 			"*": ["src/*"]
 		}
 	},
-	"include": ["src/**/*", "test/**/*.ts", ".eslintrc.js", "examples/**/*.ts", "rollup.config.mjs"],
+	"include": [
+		"src/**/*",
+		"test/**/*.ts",
+		".eslintrc.js",
+		"examples/**/*.ts",
+		"rollup.config.mjs",
+		"post-script.mjs"
+	],
 	"exclude": ["node_modules/**/*", "dist/**/*", "coverage/**/*", "examples/**/*.js"]
 }

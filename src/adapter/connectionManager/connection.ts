@@ -42,7 +42,7 @@ import {
 	defineConfig as defineSqliteConfig,
 } from '@mikro-orm/sqlite';
 
-export type MikroORMConnection =
+type MikroORMConnection =
 	| BSMikroORM
 	| MongoMikroORM
 	| MYSQLMikroORM
@@ -50,7 +50,7 @@ export type MikroORMConnection =
 	| PostMikroORM
 	| SqliteMiroOrm;
 
-export type EntityManager =
+type EntityManager =
 	| BSEntityManager
 	| MongoEntityManager
 	| MYSQLEntityManager
@@ -58,7 +58,7 @@ export type EntityManager =
 	| PostEntityManager
 	| SqliteEntityManager;
 
-export type EntityRepository<T extends object> =
+type EntityRepository<T extends object> =
 	| BSEntityRepository<T>
 	| MongoEntityRepository<T>
 	| MYSQLEntityRepository<T>
@@ -66,7 +66,7 @@ export type EntityRepository<T extends object> =
 	| PostEntityRepository<T>
 	| SqliteEntityRepository<T>;
 
-export interface Services<
+interface Services<
 	T extends MikroORMConnection,
 	U extends EntityManager,
 	V extends EntityRepository<any>,
@@ -76,18 +76,18 @@ export interface Services<
 	entityRepository: V;
 }
 
-export interface BaseOptions {
+interface BaseOptions {
 	type: string;
 }
 
-export interface OptionsBS extends BaseOptions, BSOptions {}
-export interface OptionsMongo extends BaseOptions, MongoOptions {}
-export interface OptionsMYSQL extends BaseOptions, MYSQLOptions {}
-export interface OptionsMaria extends BaseOptions, MariaOptions {}
-export interface OptionsPost extends BaseOptions, PostOptions {}
-export interface OptionsSqlite extends BaseOptions, SqliteOptions {}
+interface OptionsBS extends BaseOptions, BSOptions {}
+interface OptionsMongo extends BaseOptions, MongoOptions {}
+interface OptionsMYSQL extends BaseOptions, MYSQLOptions {}
+interface OptionsMaria extends BaseOptions, MariaOptions {}
+interface OptionsPost extends BaseOptions, PostOptions {}
+interface OptionsSqlite extends BaseOptions, SqliteOptions {}
 
-export type MikroORMConnectionOptions =
+type MikroORMConnectionOptions =
 	| OptionsBS
 	| OptionsMongo
 	| OptionsMYSQL
@@ -95,28 +95,78 @@ export type MikroORMConnectionOptions =
 	| OptionsPost
 	| OptionsSqlite;
 
-export const initORM = async (
-	config: MikroORMConnectionOptions,
-	options?: MikroORMConnectionOptions,
-): Promise<Services<MikroORMConnection, EntityManager, EntityRepository<any>> | undefined> => {
-	const ormMap: { [key: string]: any } = {
-		'better-sqlite': { orm: BSMikroORM, entity: BSEntityRepository },
-		// eslint-disable-next-line quote-props
-		mongo: { orm: MongoMikroORM, entity: MongoEntityRepository },
-		// eslint-disable-next-line quote-props
-		mysql: { orm: MYSQLMikroORM, entity: MYSQLEntityRepository },
-		// eslint-disable-next-line quote-props
-		mariadb: { orm: MariaMicroORM, entity: MariaEntityRepository },
-		// eslint-disable-next-line quote-props
-		postgresql: { orm: PostMikroORM, entity: PostEntityRepository },
-		// eslint-disable-next-line quote-props
-		sqlite: { orm: SqliteMiroOrm, entity: SqliteEntityRepository },
-	};
+const ormMap: { [key: string]: any } = {
+	'better-sqlite': {
+		orm: BSMikroORM,
+		entityRepository: BSEntityRepository,
+		entityManager: BSEntityManager,
+	},
+	// eslint-disable-next-line quote-props
+	mongo: {
+		orm: MongoMikroORM,
+		entityRepository: MongoEntityRepository,
+		entityManager: MongoEntityManager,
+	},
+	// eslint-disable-next-line quote-props
+	mysql: {
+		orm: MYSQLMikroORM,
+		entityRepository: MYSQLEntityRepository,
+		entityManager: MYSQLEntityManager,
+	},
+	// eslint-disable-next-line quote-props
+	mariadb: {
+		orm: MariaMicroORM,
+		entityRepository: MariaEntityRepository,
+		entityManager: MariaEntityManager,
+	},
+	// eslint-disable-next-line quote-props
+	postgresql: {
+		orm: PostMikroORM,
+		entityRepository: PostEntityRepository,
+		entityManager: PostEntityManager,
+	},
+	// eslint-disable-next-line quote-props
+	sqlite: {
+		orm: SqliteMiroOrm,
+		entityRepository: SqliteEntityRepository,
+		entityManager: SqliteEntityManager,
+	},
+};
+const defineConfigMap: { [key: string]: any } = {
+	'better-sqlite': {
+		defineConfig: defineBSConfig,
+	},
+	// eslint-disable-next-line quote-props
+	mongo: {
+		defineConfig: defineMongoConfig,
+	},
+	// eslint-disable-next-line quote-props
+	mysql: {
+		defineConfig: defineMYSQLConfig,
+	},
+	// eslint-disable-next-line quote-props
+	mariadb: {
+		defineConfig: defineMariaConfig,
+	},
+	// eslint-disable-next-line quote-props
+	postgresql: {
+		defineConfig: definePostConfig,
+	},
+	// eslint-disable-next-line quote-props
+	sqlite: {
+		defineConfig: defineSqliteConfig,
+	},
+};
 
-	if (config && config.type in ormMap) {
+const initORM = async (
+	config: MikroORMConnectionOptions,
+	ormMapObject = ormMap,
+	// options?: MikroORMConnectionOptions,
+): Promise<Services<MikroORMConnection, EntityManager, EntityRepository<any>> | undefined> => {
+	if (config && config.type in ormMapObject) {
 		const { type, ...restConfig } = config;
-		const orm = await ormMap[type].orm.init({ ...restConfig, ...options });
-		const entityRepository = ormMap[type].entity;
+		const orm = await ormMapObject[type].orm.init({ ...restConfig /* ...options  */ });
+		const entityRepository = ormMapObject[type].entityRepository;
 
 		return {
 			orm,
@@ -128,7 +178,36 @@ export const initORM = async (
 	return undefined;
 };
 
+export type {
+	MikroORMConnection,
+	EntityManager,
+	EntityRepository,
+	Services,
+	BaseOptions,
+	OptionsBS,
+	OptionsMongo,
+	OptionsMYSQL,
+	OptionsMaria,
+	OptionsPost,
+	OptionsSqlite,
+	MikroORMConnectionOptions,
+};
+
 export {
+	// MikroORMConnection,
+	// EntityManager,
+	// EntityRepository,
+	// Services,
+	// BaseOptions,
+	// OptionsBS,
+	// OptionsMongo,
+	// OptionsMYSQL,
+	// OptionsMaria,
+	// OptionsPost,
+	// OptionsSqlite,
+	// MikroORMConnectionOptions,
+	ormMap,
+	initORM,
 	BSMikroORM,
 	MongoMikroORM,
 	MYSQLMikroORM,
@@ -147,6 +226,7 @@ export {
 	MariaEntityRepository,
 	PostEntityRepository,
 	SqliteEntityRepository,
+	defineConfigMap,
 	defineBSConfig,
 	defineMongoConfig,
 	defineMYSQLConfig,

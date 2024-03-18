@@ -74,9 +74,9 @@ import {
 	EntityFactory,
 	EntityHelper,
 	EntityLoader,
-	EntityManager,
+	// EntityManager,
 	EntityMetadata,
-	EntityRepository,
+	// EntityRepository,
 	EntitySchema,
 	EntitySerializer,
 	EntityTransformer,
@@ -323,32 +323,11 @@ import { FlattenOptions } from 'flat';
 import { ListParams } from '../types/mikroormadapter';
 import { name, version, repository } from '../../package.json';
 import ConnectionManager from './connectionManager';
-import type { MikroORMConnection, MikroORMConnectionOptions } from './connectionManager/connection';
 import {
-	BSMikroORM,
-	MongoMikroORM,
-	MYSQLMikroORM,
-	MariaMicroORM,
-	PostMikroORM,
-	SqliteMiroOrm,
-	BSEntityManager,
-	MongoEntityManager,
-	MYSQLEntityManager,
-	MariaEntityManager,
-	PostEntityManager,
-	SqliteEntityManager,
-	BSEntityRepository,
-	MongoEntityRepository,
-	MYSQLEntityRepository,
-	MariaEntityRepository,
-	PostEntityRepository,
-	SqliteEntityRepository,
-	defineBSConfig,
-	defineMongoConfig,
-	defineMYSQLConfig,
-	defineMariaConfig,
-	definePostConfig,
-	defineSqliteConfig,
+	MikroORMConnection,
+	EntityManager,
+	EntityRepository,
+	MikroORMConnectionOptions,
 } from './connectionManager/connection';
 const flatten = async (target: unknown, options: FlattenOptions | undefined) =>
 	import('flat').then(async (flat) => await flat.flatten(target, options));
@@ -382,7 +361,7 @@ const flatten = async (target: unknown, options: FlattenOptions | undefined) =>
  * @description This class provides methods for connecting to a database using MikroORM.
  */
 // eslint-disable-next-line no-shadow
-export default class MikroORMDbAdapter<Entity extends AnyEntity> {
+class MikroORMDbAdapter<Entity extends AnyEntity> {
 	// #region Properties, constructor, init, connect, disconnect
 	// Dynamic property key
 	[index: string]: any;
@@ -414,10 +393,24 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @properties
 	 */
 	public repository: EntityRepository<Entity> | undefined;
-
+	/**
+	 * Represents the MikroORM connection.
+	 *
+	 * The MikroORM connection is used to interact with the database. It can be undefined if the MikroORM adapter is not connected to a database.
+	 *
+	 * @type {MikroORMConnection | undefined}
+	 */
 	public orm: MikroORMConnection | undefined;
 
 	public entityName: string | undefined;
+	/**
+	 * Represents the logger instance used by the service.
+	 *
+	 * The logger instance is used to log information, warnings, errors, etc. during the execution of the service. It can be undefined if the
+	 * service does not have a logger instance.
+	 *
+	 * @type {moleculer.LoggerInstance | undefined}
+	 */
 	public logger: moleculer.LoggerInstance | undefined;
 
 	private _entity: EntitySchema<Entity> | EntitySchema<Entity>[] | undefined;
@@ -427,8 +420,11 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	 * @param {MikroORMConnectionOptions} opts
 	 *
 	 */
-	public constructor(opts?: MikroORMConnectionOptions) {
+	public constructor(opts: MikroORMConnectionOptions, customDriverMap?: Record<string, any>) {
 		this.opts = opts;
+		if (customDriverMap) {
+			this.customDriverMap = customDriverMap;
+		}
 	}
 
 	/**
@@ -452,7 +448,14 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		this.logger = this.broker.logger;
 		// const entityFromService: { entities: any; entitiesTs: any } = this.service.schema.model;
 		// const entityArray: EntitySchema<Entity>[] = [];
-		has(this.opts, 'entities')
+		if (has(this.opts, 'entities')) {
+			this._entity = [...this.opts.entities];
+		} else {
+			throw new Errors.MoleculerServerError(
+				'Invalid or missing model. It should be a mikro-orm entity, path or array of paths',
+			);
+		}
+		/* has(this.opts, 'entities')
 			? (this._entity = [...this.opts.entities])
 			: // May possibly use later if model attribute is needed
 				// : isArray(entityFromService.entitiesTs)
@@ -472,7 +475,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				// ? (this._entity = entityFromService.entitiesTs)
 				new Errors.MoleculerServerError(
 					'Invalid or missing model. It should be a mikro-orm entity, path or array of paths',
-				);
+				); */
 	}
 
 	/**
@@ -519,7 +522,11 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		logger.debug('Adding logger to adapter...');
 		this.connectionManager = new ConnectionManager();
 
-		const { orm, entityManager } = await this.connectionManager.create(this.opts, logger);
+		const { orm, entityManager } = await this.connectionManager.create({
+			config: this.opts,
+			logger,
+			customORMDriverMap: this.customDriverMap,
+		});
 
 		logger.info(`${this.service.name} has connected to ${orm.name} database`);
 
@@ -527,6 +534,16 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			? (this._entity as unknown as EntitySchema)
 			: [this._entity as unknown as EntitySchema];
 
+		/**
+		 * Returns an array of method names from the provided object.
+		 *
+		 * This function gets the names of all properties of the provided object using
+		 * `Object.getOwnPropertyNames()`. It then filters this array to only include those properties that are functions.
+		 *
+		 * @param {object} obj - The object from which to get method names. Defaults to an empty object if no object is provided.
+		 *
+		 * @returns {string[]} An array of method names from the provided object.
+		 */
 		const entityMethods = (obj: { [key: string]: any } = {}) => {
 			const members = Object.getOwnPropertyNames(obj);
 			return members.filter((el) => typeof obj[el] === 'function');
@@ -534,6 +551,19 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 		logger.debug(`Adding entities to adapter: ${JSON.stringify(entityArray)}`);
 
+		/**
+		 * Adds methods from a source object to a target object.
+		 *
+		 * This function iterates over an array of method names. For each method name,
+		 * if a method with that name exists in the source object,it adds the method to the target object.
+		 * The key for the method in the target object is the method name prefixed with the provided prefix.
+		 *
+		 * @param {any[]} methods - An array of method names to add to the target object.
+		 * @param {Partial<any>} source - The source object from which to add methods.
+		 * @param {{ [x: string]: any }} target - The target object to which to add methods.
+		 * @param {string} [prefix=''] - An optional prefix to prepend to the method names in the target object.
+		 * Defaults to an empty string.
+		 */
 		const addMethods = (
 			methods: any[],
 			source: Partial<any>,
@@ -562,8 +592,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				repository: dbRepository,
 				entityName,
 			};
-
-			addMethods(entityMethodNames, entity, index === 0 ? this : methodsToAdd);
 
 			const entityManagerMethods = [
 				'addFilter',
@@ -600,13 +628,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				'execute',
 				'raw',
 			];
-			addMethods(
-				entityManagerMethods,
-				repositoryEntityManager,
-				index === 0 ? this : methodsToAdd,
-				'_',
-			);
-
 			const repositoryMethods = [
 				'assign',
 				'canPopulate',
@@ -635,6 +656,13 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				'aggregate',
 				'getCollection',
 			];
+			addMethods(entityMethodNames, entity, index === 0 ? this : methodsToAdd);
+			addMethods(
+				entityManagerMethods,
+				repositoryEntityManager,
+				index === 0 ? this : methodsToAdd,
+				'_',
+			);
 			addMethods(repositoryMethods, dbRepository, index === 0 ? this : methodsToAdd, '_');
 
 			if (index !== 0) {
@@ -671,10 +699,40 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					broker: this.broker,
 					service: this.service,
 				};
+				logger.debug('Adding forked entity manager to adapter...');
+				this[entityName].manager = orm.em.fork();
+				this[entityName].em = orm.em.fork();
+				logger.debug('Adding forked repository to adapter...');
+				this[entityName].repository = orm.em
+					.fork()
+					.getRepository(isArray(this._entity) ? this._entity[index] : this._entity!);
+				logger.debug('Adding orm to adapter...');
+				this[entityName].orm = orm;
+				logger.debug('Adding entity name to adapter...');
+				this[entityName].entityName = orm.em.getRepository(
+					isArray(this._entity) ? this._entity[index] : this._entity!,
+				).entityName;
+				logger.debug('Adding getEntityManager to adapter...');
+				this[entityName].getEntityManager = this._getEntityManager;
 			}
+			logger.debug('Adding forked entity manager to adapter...');
+			this.manager = orm.em.fork();
+			this.em = orm.em.fork();
+			logger.debug('Adding forked repository to adapter...');
+			this.repository = orm.em
+				.fork()
+				.getRepository(isArray(this._entity) ? this._entity[index] : this._entity!);
+			logger.debug('Adding orm to adapter...');
+			this.orm = orm;
+			logger.debug('Adding entity name to adapter...');
+			this.entityName = orm.em.getRepository(
+				isArray(this._entity) ? this._entity[index] : this._entity!,
+			).entityName;
+			logger.debug('Adding getEntityManager to adapter...');
+			this.getEntityManager = this._getEntityManager;
 		});
 
-		logger.debug('Adding forked entity manager to adapter...');
+		/* logger.debug('Adding forked entity manager to adapter...');
 		this.manager = orm.em.fork();
 		this.em = orm.em.fork();
 		logger.debug('Adding forked repository to adapter...');
@@ -688,7 +746,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			isArray(this._entity) ? this._entity[0] : this._entity!,
 		).entityName;
 		logger.debug('Adding getEntityManager to adapter...');
-		this.getEntityManager = this._getEntityManager;
+		this.getEntityManager = this._getEntityManager; */
 	}
 
 	/**
@@ -728,25 +786,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			}),
 		);
 	}
-	/* public async disconnect(): Promise<void> {
-		await Promise.all(
-			this.connectionManager!.connections.map(async (connection: any) => {
-				this.logger!.info(`Attempting to disconnect from database ${connection.name}...`);
-				try {
-					await this.connectionManager!.close(connection.name);
-					this.logger!.info(`Disconnected from database ${connection.name}`);
-				} catch (error) {
-					this.logger!.error(`Failed to disconnect from database ${error}`);
-					throw new Errors.MoleculerServerError(
-						`Failed to disconnect from database ${error}`,
-						500,
-						'FAILED_TO_DISCONNECT_FROM_DATABASE',
-						error,
-					);
-				}
-			}),
-		);
-	} */
 	// #endregion Properties, constructor, init, connect, disconnect
 	// #region Adapter custom methods
 	// -------------------------------------------------------------------------
@@ -829,62 +868,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			throw handleError(error);
 		}
 	}
-	/* public async create<T extends Entity>(
-		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
-		options?: CreateOptions,
-	): Promise<T | T[]> {
-		this.logger!.debug(
-			`Attempting to create entit(y/ies): ${JSON.stringify(entityOrEntities)}`,
-		);
-		return isArray(entityOrEntities)
-			? await resolve(entityOrEntities.map((entity: any) => this['_create'](entity, options)))
-					.then(async (docs: T[]) => {
-						this.logger!.debug('Entities created: ', docs);
-						const docsArray: T[] = [];
-						this.logger!.debug('Attempting to Persist created entities and flush');
-						forEach(docs, async (doc: T) => {
-							this.logger!.debug('Attempting to Persist created entity: ', doc);
-							try {
-								await this.em.persist(doc).flush();
-								// await this['manager']!.fork().persist(doc).flush();
-								docsArray.push(doc);
-							} catch (error) {
-								this.logger!.error(`Failed to create entity: ${error}`);
-								return new Errors.MoleculerServerError(
-									`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
-									500,
-									'FAILED_TO_CREATE_ENTITY',
-									error,
-								);
-							}
-						});
-						return docsArray;
-					})
-					.catch((err: any) => {
-						this.logger!.error(`Failed to create entity: ${err}`);
-						return new Errors.MoleculerServerError(
-							`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
-							500,
-							'FAILED_TO_CREATE_ENTITY',
-							err,
-						);
-					})
-			: await resolve(this['_create'](entityOrEntities, options))
-					.then(async (doc: any) => {
-						this.logger!.debug('Persiting created entity and flushing: ', doc);
-						await this.em.persistAndFlush(doc);
-						return doc;
-					})
-					.catch((err: any) => {
-						this.logger!.error(`Failed to create entity: ${err}`);
-						return new Errors.MoleculerServerError(
-							`Failed to create entity: ${JSON.stringify(entityOrEntities)}`,
-							500,
-							'FAILED_TO_CREATE_ENTITY',
-							err,
-						);
-					});
-	} */
 
 	/**
 	 * Asynchronously inserts one or more entities into the database.
@@ -958,31 +941,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public async updateById<T extends Entity>(
-		id: any,
-		update: EntityData<T>,
-		options?: UpdateOptions<T>,
-	): Promise<T> {
-		this.logger!.debug(`Updating entity by ID '${id}' with ${JSON.stringify(update)}`);
-		const transformId: any = this.beforeQueryTransformID(id);
-		const entity = await this['_nativeUpdate']({ [transformId]: id }, update, options)
-			.then(async (docs: any) => {
-				this.logger!.debug(`Updated entity by ID '${id}': ${docs}`);
-				const updatedEntity = await this.findById(id);
-				this.logger!.debug('Transforming update docs...');
-				return updatedEntity;
-			})
-			.catch((error: any) => {
-				this.logger!.error(`Failed to updateById ${error}`);
-				return new Errors.MoleculerServerError(
-					`Failed to updateById ${error}`,
-					500,
-					'FAILED_TO_UPDATE_BY_ID',
-					error,
-				);
-			});
-		return this.afterRetrieveTransformID(entity, this.service.settings.idField) as T;
-	} */
 
 	/**
 	 * Asynchronously removes an entity from the database by its ID.
@@ -1025,21 +983,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public async removeById<T extends Entity>(
-		id: any,
-		options?: DeleteOptions<T>,
-	): Promise<number> {
-		const transformId: any = this.beforeQueryTransformID(id);
-		return await this['_nativeDelete']({ [transformId]: id }, options).catch((error: any) => {
-			this.logger!.error(`Failed to removeById ${error}`);
-			return new Errors.MoleculerServerError(
-				`Failed to removeById ${error}`,
-				500,
-				'FAILED_TO_REMOVE_BY_ID',
-				error,
-			);
-		});
-	} */
 
 	/**
 	 * Asynchronously removes multiple entities from the database by their IDs.
@@ -1079,20 +1022,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public async removeMany<T extends Entity>(
-		id: any[],
-		options?: DeleteOptions<T>,
-	): Promise<number> {
-		return await this['_nativeDelete'](id, options).catch((error: any) => {
-			this.logger!.error(`Failed to removeMany by id: ${error}`);
-			return new Errors.MoleculerServerError(
-				`Failed to removeMany by id: ${error}`,
-				500,
-				'FAILED_TO_REMOVE_MANY_BY_ID',
-				error,
-			);
-		});
-	} */
 
 	/**
 	 * Asynchronously counts the number of entities in the database that match the provided filter query.
@@ -1132,20 +1061,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public async count<T extends Entity, P extends string>(
-		where?: FilterQuery<T>,
-		options?: CountOptions<T, P>,
-	): Promise<number> {
-		return this['_count'](where, options).catch((error: any) => {
-			this.logger!.error(`Failed to count: ${error}`);
-			return new Errors.MoleculerServerError(
-				`Failed to count ${error}`,
-				500,
-				'FAILED_TO_COUNT',
-				error,
-			);
-		});
-	} */
 
 	/**
 	 * Asynchronously finds entities in the database that match the provided filter query.
@@ -1185,20 +1100,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public async find<T extends Entity, P extends string>(
-		where: FilterQuery<T>,
-		options?: FindOptions<T, P>,
-	): Promise<Loaded<T, P> | Loaded<T, P>[]> {
-		return await this['_find'](where, options).catch((error: any) => {
-			this.logger!.error(`Failed to find: ${error}`);
-			return new Errors.MoleculerServerError(
-				`Failed to find ${error}`,
-				500,
-				'FAILED_TO_FIND',
-				error,
-			);
-		});
-	} */
 
 	/**
 	 * Asynchronously finds a single entity in the database that matches the provided filter query.
@@ -1239,21 +1140,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public async findOne<T extends Entity, P extends string>(
-		where: FilterQuery<T>,
-		options?: FindOneOptions<T, P>,
-	): Promise<null | Loaded<T, P>> {
-		const entity = await this['_findOne'](where, options).catch((error: any) => {
-			this.logger!.error(`Failed to findOne: ${error}`);
-			return new Errors.MoleculerServerError(
-				`Failed to findOne ${error}`,
-				500,
-				'FAILED_TO_FIND_ONE',
-				error,
-			);
-		});
-		return entity;
-	} */
 
 	/**
 	 * Asynchronously finds an entity in the database by its ID. No find options can be provided.
@@ -1293,20 +1179,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public async findById<T extends Entity>(
-		id: string | number | string[] | number[],
-	): Promise<T | undefined> {
-		const record = await this['_find'](id).catch((error: any) => {
-			this.logger!.error(`Failed to findById ${error}`);
-			return new Errors.MoleculerServerError(
-				`Failed to findById ${error}`,
-				500,
-				'FAILED_TO_FIND_BY_ID',
-				error,
-			);
-		});
-		return record[0];
-	} */
 
 	/**
 	 * Asynchronously retrieves population data based on the provided parameters.
@@ -1390,59 +1262,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			throw error;
 		}
 	}
-	/* public getPopulations(ctx: Context, params?: any): object | object[] {
-		const id = params.id;
-		let origDoc: any;
-		const shouldMapping = params.mapping === true;
-		return this['findById'](id)
-			.then(async (doc) => {
-				if (!doc) {
-					return Promise.reject(
-						new Errors.MoleculerServerError(
-							`Failed to findById ${id}`,
-							500,
-							'FAILED_TO_FIND_BY_ID',
-						),
-					);
-				}
-
-				if (shouldMapping) {
-					origDoc = isArray(doc) ? doc.map((d) => cloneDeep(d)) : cloneDeep(doc);
-				} else {
-					origDoc = doc;
-				}
-
-				return this.transformDocuments(ctx, params, doc);
-			})
-			.then((json) => {
-				if (params.mapping !== true) {
-					return json;
-				}
-
-				const res: any = {};
-				if (isArray(json)) {
-					json.forEach((doc, i) => {
-						const docId = this.encodeID(
-							// @ts-ignore
-							this.afterRetrieveTransformID(
-								origDoc[i],
-								this.service.settings.idField,
-							)[this.service.settings.idField],
-						);
-						res[docId] = doc;
-					});
-				} else if (isObject(json)) {
-					const docId = this.encodeID(
-						// @ts-ignore
-						this.afterRetrieveTransformID(origDoc, this.service.settings.idField)[
-							this.service.settings.idField
-						],
-					);
-					res[docId] = json;
-				}
-				return res;
-			});
-	} */
 
 	/**
 	 * Asynchronously lists entities in the database based on the provided parameters.
@@ -1518,67 +1337,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	/* public list(ctx: Context, params: any): object {
-		const countParams = { ...params };
-		// Remove pagination params
-		if (countParams?.limit) {
-			countParams.limit = null;
-		}
-		if (countParams?.offset) {
-			countParams.offset = null;
-		}
-		if (params.limit == null) {
-			if (this.service.settings.limit > 0 && params.pageSize! > this.service.settings.limit) {
-				params.limit = this.service.settings.limit;
-			} else {
-				params.limit = params.pageSize;
-			}
-		}
-		this.logger!.debug(`Listing entities with ${JSON.stringify(params)}`);
-		return Promise.all([
-			this.logger!.warn('Finding rows and counting using params: ', params),
-			// Get rows
-			// this['find'](params),
-			// this.logger!.warn('Getting count using params: ', countParams),
-			// Get count of all rows
-			// this['count'](countParams),
-			this['_findAndCount']({}, params).catch((error: any) => {
-				this.logger!.error(`Failed to list ${error}`);
-				return new Errors.MoleculerServerError(
-					`Failed to list ${error}`,
-					500,
-					'FAILED_TO_LIST',
-					error,
-				);
-			}),
-		]).then(
-			async (res) =>
-				await this.transformDocuments(ctx, params, res[1][0])
-					.then((docs) => ({
-						// Rows
-						rows: docs,
-						// Total rows
-						total: res[1][1],
-						// Page
-						page: params.page,
-						// Page size
-						pageSize: params.pageSize,
-						// Total pages
-						totalPages: Math.floor(
-							(res[1][1] + params.pageSize! - 1) / params.pageSize!,
-						),
-					}))
-					.catch((error: any) => {
-						this.logger!.error(`Failed to transform response: ${error}`);
-						return new Errors.MoleculerServerError(
-							`Failed to  transform response ${error}`,
-							500,
-							'FAILED_TO_TRANSFORM_RESPONSE',
-							error,
-						);
-					}),
-		);
-	} */
 
 	/**
 	 * Transforms the ID field of an entity before saving it to the database.
@@ -1614,28 +1372,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 		return newEntity;
 	}
-	/* public beforeSaveTransformID(entity: any, idField: string): object {
-		let newEntity = cloneDeep(entity);
-		// gets the idField from the entity
-		const dbIDField =
-			this.opts.type === 'mongodb'
-				? '_id'
-				: find(this.manager?.getMetadata()['metadata'][this.entityName!].props, {
-						primary: true,
-					}).name;
-
-		if (idField !== dbIDField && entity[idField] !== undefined) {
-			newEntity = JSON.parse(
-				replace(
-					JSON.stringify(newEntity),
-					new RegExp(`"${idField}":`, 'g'),
-					`"${dbIDField}":`,
-				),
-			);
-		}
-
-		return newEntity;
-	} */
 
 	/**
 	 * Transforms the ID field of an entity after retrieving it from the database.
@@ -1668,25 +1404,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 		return newEntity;
 	}
-	/* public afterRetrieveTransformID(entity: any, idField: string): object {
-		// gets the idField from the entity
-		const dbIDField = find(this.manager?.getMetadata()['metadata'][this.entityName!].props, {
-			primary: true,
-		}).name;
-		let newEntity;
-		if (!entity.hasOwnProperty(idField)) {
-			newEntity = JSON.parse(
-				replace(
-					JSON.stringify(entity),
-					new RegExp(`"${dbIDField}":`, 'g'),
-					`"${idField}":`,
-				),
-			);
-		} else {
-			newEntity = entity;
-		}
-		return newEntity;
-	} */
 
 	/**
 	 * Encodes the ID of an entity.
@@ -1756,26 +1473,16 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 					}).name;
 		return idField !== dbIDField ? dbIDField : idField;
 	}
-	/* public beforeQueryTransformID(idField: any): any {
-		const dbIDField =
-			this.opts.type === 'mongodb'
-				? '_id'
-				: find(this.manager?.getMetadata()['metadata'][this.entityName!].props, {
-						primary: true,
-					}).name;
-		if (idField !== dbIDField) {
-			return dbIDField;
-		}
-		return idField;
-	} */
 
 	/**
-	 * Decode ID of entity.
+	 * Decodes the provided ID.
+	 *
+	 * This method currently returns the provided ID as it is. It can be overridden in subclasses to provide custom decoding logic.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
-	 * @memberof MikroORMDbAdapter
+	 * @param {any} id - The ID to decode.
+	 *
+	 * @returns {any} The decoded ID.
 	 */
 	public decodeID(id: any): any {
 		return id;
@@ -1916,125 +1623,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			);
 		}
 	}
-	// public async transformDocuments(ctx: any, params: any, docs: any): Promise<any[] | object> {
-	// 	this.logger!.debug('Transforming documents..');
-	// 	let isDoc = false;
-	// 	this.logger!.debug(`Setting userDefinedIDField to ${this.service.settings.idField}`);
-	// 	const userDefinedIDField = this.service.settings.idField;
-	// 	this.logger!.debug('Checking if docs is an array or an object..');
-	// 	if (!isArray(docs)) {
-	// 		this.logger!.debug('Docs is not an array');
-	// 		if (isObject(docs)) {
-	// 			this.logger!.debug('Docs is an object, converting to array..');
-	// 			isDoc = true;
-	// 			docs = [docs];
-	// 		} else {
-	// 			this.logger!.debug('Docs is not an object, returning docs..');
-	// 			return resolve(docs);
-	// 		}
-	// 	}
-
-	// 	return (
-	// 		resolve(docs)
-	// 			// Convert entity to JS object
-	// 			.then((entity) =>
-	// 				all(
-	// 					entity.map((doc: any) => {
-	// 						this.logger!.debug('Converting entity to JS object...');
-	// 						return this.entityToObject(doc);
-	// 					}),
-	// 				),
-	// 			)
-
-	// 			// Apply idField
-	// 			.then((entity) =>
-	// 				entity.map((doc: any) => {
-	// 					this.logger!.debug('Applying idField to docs...');
-	// 					return this.afterRetrieveTransformID(doc, userDefinedIDField);
-	// 				}),
-	// 			)
-	// 			// Encode IDs
-	// 			.then((entity) =>
-	// 				entity.map((doc: { [x: string]: any }) => {
-	// 					this.logger!.debug('Encoding IDs..');
-	// 					doc[userDefinedIDField] = this.encodeID(doc[userDefinedIDField]);
-	// 					return doc;
-	// 				}),
-	// 			)
-	// 			// Populate
-	// 			.then(async (json) => {
-	// 				this.logger!.debug(`Populating docs with ${params.populate}..`);
-	// 				return ctx && params.populate
-	// 					? await this.populateDocs(ctx, json, params.populate)
-	// 					: json;
-	// 			})
-
-	// 			// TODO onTransformHook
-
-	// 			// Filter fields
-	// 			.then((json) => {
-	// 				this.logger!.debug('Attempting to filter fields..');
-	// 				if (ctx && params.fields) {
-	// 					this.logger!.debug('Fields found in params..');
-	// 					const fields = isString(params.fields)
-	// 						? // Compatibility with < 0.4
-	// 							/* istanbul ignore next */
-	// 							params.fields.split(/\s+/)
-	// 						: params.fields;
-	// 					// Authorize the requested fields
-	// 					this.logger!.debug('Authorizing fields..');
-	// 					const authFields = this.authorizeFields(fields);
-	// 					this.logger!.debug('Filtering fields and returning object..');
-	// 					return json.map((item: any) => this.filterFields(item, authFields));
-	// 				} else {
-	// 					this.logger!.debug(
-	// 						'No fields found in params, returning filtered object..',
-	// 					);
-	// 					return json.map((item: any) =>
-	// 						this.filterFields(item, this.service.settings.fields),
-	// 					);
-	// 				}
-	// 			})
-
-	// 			// Filter excludeFields
-	// 			.then((json) => {
-	// 				this.logger!.debug('Attempting to filter excludeFields..');
-	// 				const paramExcludeFields = isString(params.excludeFields)
-	// 					? params.excludeFields.split(/\s+/)
-	// 					: params.excludeFields;
-	// 				const askedExcludeFields =
-	// 					ctx && params.excludeFields ? paramExcludeFields : [];
-	// 				const excludeFields = askedExcludeFields.concat(
-	// 					this.service.settings.excludeFields || [],
-	// 				);
-	// 				if (Array.isArray(excludeFields) && excludeFields.length > 0) {
-	// 					this.logger!.debug(
-	// 						'ExcludeFields found in params, returning filtered object..',
-	// 					);
-	// 					return json.map((doc: any) => this._excludeFields(doc, excludeFields));
-	// 				} else {
-	// 					this.logger!.debug('No excludeFields found in params, returning object..');
-	// 					return json;
-	// 				}
-	// 			})
-
-	// 			// Return
-	// 			.then((json) => {
-	// 				this.logger!.debug('Returning json object..');
-	// 				return isDoc ? json[0] : json;
-	// 			})
-	// 			.catch((err) => {
-	// 				/* istanbul ignore next */
-	// 				this.logger!.error('Transforming documents is failed!', err);
-	// 				throw new Errors.MoleculerServerError(
-	// 					`Failed to transform documents ${err}`,
-	// 					500,
-	// 					'FAILED_TO_TRANSFORM_DOCUMENTS',
-	// 					err,
-	// 				);
-	// 			})
-	// 	);
-	// }
 
 	/**
 	 * Executes a hook (before entity lifecycle event) before an entity change operation.
@@ -2064,13 +1652,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		}
 		return await this.service.schema[eventName].call(this, entity, ctx);
 	}
-	/* public async beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any> {
-		const eventName = `beforeEntity${capitalize(type)}`;
-		if (this.service.schema[eventName] == null) {
-			return resolve(entity);
-		}
-		return resolve(this.service.schema[eventName].call(this, entity, ctx));
-	} */
 
 	/**
 	 * Executes a hook after an entity change operation and clears the cache.
@@ -2093,7 +1674,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	public async entityChanged(
 		type: string | undefined,
 		json: object | object[] | number,
-		ctx: any,
+		ctx: Context,
 	): Promise<any> {
 		await this.clearCache();
 		const eventName = `entity${capitalize(type)}`;
@@ -2101,14 +1682,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			return await this.service.schema[eventName].call(this, json, ctx);
 		}
 	}
-	/* public async entityChanged(type: string | undefined, json: any, ctx: any): Promise<any> {
-		return await this.clearCache().then(async () => {
-			const eventName = `entity${capitalize(type)}`;
-			if (this.service.schema[eventName] != null) {
-				return await this.service.schema[eventName].call(this, json, ctx);
-			}
-		});
-	} */
 
 	/**
 	 * Clears the cache for this service.
@@ -2128,13 +1701,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			return this.broker.cacher.clean(`${this.fullName}.**`);
 		}
 	}
-	/* public async clearCache(): Promise<any> {
-		this.broker[this.service.settings.cacheCleanEventType](`cache.clean.${this.fullName}`);
-		if (this.broker.cacher) {
-			return await this.broker.cacher.clean(`${this.fullName}.**`);
-		}
-		return resolve();
-	} */
 
 	/**
 	 * Filters the fields of a document.
@@ -2165,21 +1731,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		}
 		return doc;
 	}
-	/* public filterFields(doc: any, fields: any[]): object {
-		// Apply field filter (support nested paths)
-		if (isArray(fields)) {
-			const res = {};
-			fields.forEach((n) => {
-				const v = get(doc, n);
-				if (v !== undefined) {
-					set(res, n, v);
-				}
-			});
-			return res;
-		}
-
-		return doc;
-	} */
 
 	/**
 	 * Excludes specified fields from a document.
@@ -2205,13 +1756,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		}
 		return doc;
 	}
-	/* public excludeFields(doc: any, fields: string | any[]): object {
-		if (Array.isArray(fields) && fields.length > 0) {
-			return this._excludeFields(doc, fields);
-		}
-
-		return doc;
-	} */
 
 	/**
 	 * Populates documents with additional data based on the provided fields.
@@ -2250,7 +1794,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 	public async populateDocs(
 		ctx: Context,
 		docs: any[] | object,
-		populateFields?: any[],
+		populateFields?: string[],
 	): Promise<any> {
 		this.logger!.debug('Attempting to populate documents..');
 		if (
@@ -2359,115 +1903,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 				);
 			});
 	}
-	// public async populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any> {
-	// 	this.logger!.debug('Attempting to populate documents..');
-	// 	if (
-	// 		!this.service.settings.populates ||
-	// 		!isArray(populateFields) ||
-	// 		populateFields.length === 0
-	// 	) {
-	// 		return resolve(docs);
-	// 	}
-
-	// 	if (docs == null || (!isObject(docs) && !isArray(docs))) {
-	// 		return resolve(docs);
-	// 	}
-
-	// 	const settingPopulateFields = Object.keys(this.service.settings.populates);
-
-	// 	/* Group populateFields by populatesFields for deep population.
-	// 		(e.g. if "post" in populates and populateFields = ["post.author", "post.reviewer", "otherField"])
-	// 		then they would be grouped together: { post: ["post.author", "post.reviewer"], otherField:["otherField"]}
-	// 		*/
-	// 	const groupedPopulateFields = populateFields.reduce((obj, populateField) => {
-	// 		const settingPopulateField = settingPopulateFields.find(
-	// 			(settingPopulateFieldString) =>
-	// 				settingPopulateFieldString === populateField ||
-	// 				populateField.startsWith(settingPopulateFieldString + '.'),
-	// 		);
-	// 		if (settingPopulateField != null) {
-	// 			if (obj[settingPopulateField] == null) {
-	// 				obj[settingPopulateField] = [populateField];
-	// 			} else {
-	// 				obj[settingPopulateField].push(populateField);
-	// 			}
-	// 		}
-	// 		return obj;
-	// 	}, {});
-
-	// 	const promises = [];
-	// 	for (const populatesField of settingPopulateFields) {
-	// 		let rule = this.service.settings.populates[populatesField];
-	// 		if (groupedPopulateFields[populatesField] == null) {
-	// 			continue;
-	// 		} // skip
-
-	// 		// if the rule is a function, save as a custom handler
-	// 		if (isFunction(rule)) {
-	// 			rule = {
-	// 				handler: method(rule),
-	// 			};
-	// 		}
-
-	// 		// If the rule is string, convert to object
-	// 		if (isString(rule)) {
-	// 			rule = {
-	// 				action: rule,
-	// 			};
-	// 		}
-
-	// 		if (rule.field === undefined) {
-	// 			rule.field = populatesField;
-	// 		}
-
-	// 		const arr = isArray(docs) ? docs : [docs];
-
-	// 		// Collect IDs from field of docs (flatten, compact & unique list)
-	// 		const idList = uniq(flattenDeep(compact(arr.map((doc) => get(doc, rule.field)))));
-	// 		// Replace the received models according to IDs in the original docs
-	// 		const resultTransform = (populatedDocs: any) => {
-	// 			arr.forEach((doc) => {
-	// 				const id = get(doc, rule.field);
-	// 				if (isArray(id)) {
-	// 					const models = compact(id.map((docId) => populatedDocs[docId]));
-	// 					set(doc, populatesField, models);
-	// 				} else {
-	// 					set(doc, populatesField, populatedDocs[id]);
-	// 				}
-	// 			});
-	// 		};
-
-	// 		if (rule.handler) {
-	// 			promises.push(rule.handler.call(this, idList, arr, rule, ctx));
-	// 		} else if (idList.length > 0) {
-	// 			// Call the target action & collect the promises
-	// 			const params = Object.assign(
-	// 				{
-	// 					id: idList,
-	// 					mapping: true,
-	// 					populate: [
-	// 						// Transform "post.author" into "author" to pass to next populating service
-	// 						...groupedPopulateFields[populatesField]
-	// 							.map((populateField: string | any[]) =>
-	// 								populateField.slice(populatesField.length + 1),
-	// 							) // +1 to also remove any leading "."
-	// 							.filter((field: string) => field !== ''),
-	// 						...(rule.populate ? rule.populate : []),
-	// 					],
-	// 				},
-	// 				rule.params || {},
-	// 			);
-
-	// 			if (params.populate.length === 0) {
-	// 				delete params.populate;
-	// 			}
-
-	// 			promises.push(ctx.call(rule.action, params).then(resultTransform));
-	// 		}
-	// 	}
-
-	// 	return all(promises).then(() => docs);
-	// }
 
 	/**
 	 * Validates an entity or an array of entities.
@@ -2498,18 +1933,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 		);
 		return entity;
 	}
-	/* public async validateEntity(entity: any): Promise<any> {
-		if (!isFunction(this.service.settings.entityValidator)) {
-			return resolve(entity);
-		}
-
-		const entities = isArray(entity) ? entity : [entity];
-		return all(
-			entities.map((entityToValidate) =>
-				this.service.settings.entityValidator.call(this, entityToValidate),
-			),
-		).then(() => entity);
-	} */
 
 	/**
 	 * Converts an entity to a JavaScript object.
@@ -2574,41 +1997,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 		return askedFields;
 	}
-	/* public authorizeFields(askedFields: any[]): any[] {
-		if (this.service.settings.fields && this.service.settings.fields.length > 0) {
-			let allowedFields: any[] = [];
-			if (isArray(askedFields) && askedFields.length > 0) {
-				askedFields.forEach((askedField) => {
-					if (this.service.settings.fields.indexOf(askedField) !== -1) {
-						allowedFields.push(askedField);
-						return;
-					}
-
-					if (askedField.indexOf('.') !== -1) {
-						const parts = askedField.split('.');
-						while (parts.length > 1) {
-							parts.pop();
-							if (this.service.settings.fields.indexOf(parts.join('.')) !== -1) {
-								allowedFields.push(askedField);
-								return;
-							}
-						}
-					}
-
-					const nestedFields = this.service.settings.fields.filter(
-						(settingField: string) => settingField.startsWith(askedField + '.'),
-					);
-					if (nestedFields.length > 0) {
-						allowedFields = allowedFields.concat(nestedFields);
-					}
-				});
-				// return _.intersection(f, this.service.settings.fields);
-			}
-			return allowedFields;
-		}
-
-		return askedFields;
-	} */
 
 	/**
 	 * Sanitizes and converts parameters based on their expected types.
@@ -2679,85 +2067,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 
 		return p;
 	}
-	/* public sanitizeParams(ctx: any, params: any) {
-		const p = { ...params };
-
-		// Convert from string to number
-		if (typeof p.limit === 'string') {
-			p.limit = Number(p.limit);
-		}
-		if (typeof p.offset === 'string') {
-			p.offset = Number(p.offset);
-		}
-		if (typeof p.page === 'string') {
-			p.page = Number(p.page);
-		}
-		if (typeof p.pageSize === 'string') {
-			p.pageSize = Number(p.pageSize);
-		}
-		// Convert from string to POJO
-		if (typeof p.query === 'string') {
-			p.query = JSON.parse(p.query);
-		}
-
-		if (typeof p.sort === 'string') {
-			p.sort = p.sort.split(/[,\s]+/);
-		}
-
-		if (typeof p.fields === 'string') {
-			p.fields = p.fields.split(/[,\s]+/);
-		}
-
-		if (typeof p.excludeFields === 'string') {
-			p.excludeFields = p.excludeFields.split(/[,\s]+/);
-		}
-
-		if (typeof p.populate === 'string') {
-			p.populate = p.populate.split(/[,\s]+/);
-		}
-
-		if (typeof p.searchFields === 'string') {
-			p.searchFields = p.searchFields.split(/[,\s]+/);
-		}
-
-		if (typeof p.where === 'string') {
-			p.where = JSON.parse(p.where);
-		}
-		if (typeof p.options === 'string') {
-			p.options = JSON.parse(p.options);
-		}
-
-		if (ctx.action.name.endsWith('.list')) {
-			// Default `pageSize`
-			if (!p.pageSize) {
-				p.pageSize = this.service.settings.pageSize;
-			}
-
-			// Default `page`
-			if (!p.page) {
-				p.page = 1;
-			}
-
-			// Limit the `pageSize`
-			if (
-				this.service.settings.maxPageSize > 0 &&
-				p.pageSize > this.service.settings.maxPageSize
-			) {
-				p.pageSize = this.service.settings.maxPageSize;
-			}
-
-			// Calculate the limit & offset from page & pageSize
-			p.limit = p.pageSize;
-			p.offset = (p.page - 1) * p.pageSize;
-		}
-		// Limit the `limit`
-		if (this.service.settings.maxLimit > 0 && p.limit > this.service.settings.maxLimit) {
-			p.limit = this.service.settings.maxLimit;
-		}
-
-		return p;
-	} */
-
 	/**
 	 * Excludes specified fields from a document. Internal use only, must ensure `fields` is an Array
 	 *
@@ -2779,13 +2088,6 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
 			return res;
 		}, cloneDeep(doc));
 	}
-	/* private _excludeFields(doc: any, fields: any[]) {
-		const res = cloneDeep(doc);
-		fields.forEach((field) => {
-			unset(res, field);
-		});
-		return res;
-	} */
 	// #endregion Adapter custom methods
 }
 
@@ -2795,7 +2097,7 @@ export default class MikroORMDbAdapter<Entity extends AnyEntity> {
  * The schema includes service settings, actions for finding, counting, listing, creating, inserting, and getting entities.
  * Each action has its own parameters and handler function.
  */
-export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) => {
+const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) => {
 	const mixin = defaultsDeep(
 		{
 			// #region Service settings
@@ -3759,7 +3061,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 				 *
 				 * @returns {number} The number of documents that match the provided parameters.
 				 */
-				_count(ctx: Context, params?: any): number {
+				async _count(ctx: Context, params?: any): Promise<number> {
 					// Remove pagination params
 					if (params?.limit) {
 						params.limit = null;
@@ -3768,7 +3070,7 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 						params.offset = null;
 					}
 					// @ts-ignore
-					return this.adapter.count(params);
+					return await this.adapter.count(params);
 				},
 
 				/**
@@ -4092,6 +3394,8 @@ export const MikroORMServiceSchemaMixin = (mixinOptions?: ServiceSettingSchema) 
 };
 
 export {
+	MikroORMDbAdapter as default,
+	MikroORMServiceSchemaMixin,
 	AbstractNamingStrategy,
 	AbstractSchemaGenerator,
 	ArrayCollection,
@@ -4125,9 +3429,9 @@ export {
 	EntityFactory,
 	EntityHelper,
 	EntityLoader,
-	EntityManager,
+	// EntityManager,
 	EntityMetadata,
-	EntityRepository,
+	// EntityRepository,
 	EntitySchema,
 	EntitySerializer,
 	EntityTransformer,
@@ -4368,28 +3672,4 @@ export {
 	RequiredEntityData,
 	SeederOptions,
 	Transaction,
-	BSMikroORM,
-	MongoMikroORM,
-	MYSQLMikroORM,
-	MariaMicroORM,
-	PostMikroORM,
-	SqliteMiroOrm,
-	BSEntityManager,
-	MongoEntityManager,
-	MYSQLEntityManager,
-	MariaEntityManager,
-	PostEntityManager,
-	SqliteEntityManager,
-	BSEntityRepository,
-	MongoEntityRepository,
-	MYSQLEntityRepository,
-	MariaEntityRepository,
-	PostEntityRepository,
-	SqliteEntityRepository,
-	defineBSConfig,
-	defineMongoConfig,
-	defineMYSQLConfig,
-	defineMariaConfig,
-	definePostConfig,
-	defineSqliteConfig,
 };

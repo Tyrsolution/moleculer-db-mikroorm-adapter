@@ -7,20 +7,21 @@
  * MIT Licensed
  */
 import Moleculer, { Errors } from 'moleculer';
+import { has } from 'lodash';
 import MikroORMDbAdapter from '../../adapter';
 import {
+	MikroORMConnection,
+	EntityManager,
+	EntityRepository,
+	Services,
+	MikroORMConnectionOptions,
+	initORM,
 	BSMikroORM,
 	MongoMikroORM,
 	MYSQLMikroORM,
 	MariaMicroORM,
 	PostMikroORM,
 	SqliteMiroOrm,
-	initORM,
-	Services,
-	MikroORMConnection,
-	EntityManager,
-	EntityRepository,
-	MikroORMConnectionOptions,
 } from './connection';
 
 /**
@@ -158,40 +159,61 @@ export default class ConnectionManager {
 	}
 
 	/**
-	 * Creates a new connection based on the given connection options and registers it in the manager.
-	 * Connection won't be established, you'll need to manually call connect method to establish connection.
+	 * Creates a new database connection or retrieves an existing one.
+	 *
+	 * This method does the following:
+	 * - Validates that a logger is provided.
+	 * - Retrieves or creates a new connection based on the provided options.
+	 * - If a new connection is requested and an existing connection does not exist, it creates a new MikroORMDbAdapter.
+	 * - If a new connection is not requested or an existing connection exists, it checks if the connection is already connected.
+	 * - If the connection is already connected, it throws an error.
+	 * - If the connection is not connected, it initializes the ORM and updates the schema.
+	 * - It then sets the active connection and adds it to the connection map.
 	 *
 	 * @public
-	 * @param {MikroORMConnectionOptions} options - Mikro-ORM data source connection options
-	 * @param {Moleculer.LoggerInstance} logger - Moleculer logger
-	 * @param {boolean} newConnection - Toggle to create a new instance of MikroORMDbAdapter.
-	 * @returns {Promise<object>} - Connection object
+	 * @param {object} options - The options for creating the connection. It includes the configuration for the connection,
+	 * the logger instance, a flag indicating whether a new connection should be created, and a map of custom ORM drivers.
+	 * @param {MikroORMConnectionOptions} options.config - Mikro-ORM data source connection options
+	 * @param {Moleculer.LoggerInstance} options.logger - Moleculer logger
+	 * @param {boolean} options.newConnection - Toggle to create a new instance of MikroORMDbAdapter.
+	 * @param {object} options.customORMDriverMap - Object containing custom ORM drivers mapped.
+	 *
+	 * @returns {Promise<object>} A promise that resolves to an object containing the ORM, the entity manager, and the entity
+	 * repository for the active connection.
+	 *
+	 * @throws {moleculer.Errors.MoleculerServerError} If a logger is not provided, if a connection already exists for the
+	 * provided name, or if an error occurs while creating the connection, it throws a MoleculerServerError with a message
+	 * that includes the error, a status code of 500, and an error code.
+	 * Connection won't be established, you'll need to manually call connect method to establish connection.
 	 *
 	 * @connectionmanager
 	 */
-	public async create(
-		options: MikroORMConnectionOptions,
-		logger: Moleculer.LoggerInstance,
-		newConnection: boolean = false,
-	): Promise<any> {
-		if (!logger) {
+	public async create(options: {
+		config: MikroORMConnectionOptions;
+		logger: Moleculer.LoggerInstance;
+		newConnection?: boolean;
+		customORMDriverMap?: Record<string, any>;
+	}): Promise<any> {
+		if (!options.logger) {
 			throw new Errors.MoleculerServerError(
 				'Logger not provided',
 				500,
 				'ERR_LOGGER_NOT_FOUND',
 			);
 		}
-
-		const connectionName = options.name ?? 'default';
-		const connectionOptions = { ...options };
+		const logger = options.logger;
+		const connectionName = options.config.name ?? 'default';
+		const connectionOptions = { ...options.config };
 		const existConnection = this._connectionMap.get(connectionName);
-
+		if (!has(options, 'newConnection')) {
+			options.newConnection = false;
+		}
 		const throwError = (message: string, code: string) => {
 			logger.debug(message);
 			throw new Errors.MoleculerServerError(message, 500, code);
 		};
 
-		if (newConnection && !existConnection) {
+		if (options.newConnection && !existConnection) {
 			logger.debug(`Creating new connection for: ${connectionName}`);
 			return new MikroORMDbAdapter(connectionOptions);
 		} else {
@@ -203,9 +225,11 @@ export default class ConnectionManager {
 							`Connection already exists for: ${connectionName}`,
 							'ERR_CONNECTION_ALREADY_EXIST',
 						)
-					: await initORM(connectionOptions).catch((err: any) => {
-							throwError(err.message, 'ERR_CONNECTION_CREATE');
-						});
+					: await initORM(connectionOptions, options.customORMDriverMap).catch(
+							(err: any) => {
+								throwError(err.message, 'ERR_CONNECTION_CREATE');
+							},
+						);
 
 			logger.debug(`Connection created for: ${connectionName}`);
 			await dbConnection!.orm
@@ -244,3 +268,44 @@ export default class ConnectionManager {
 		}
 	}
 }
+/* export {
+	ConnectionManager as default,
+	MikroORMConnection,
+	EntityManager,
+	EntityRepository,
+	Services,
+	BaseOptions,
+	OptionsBS,
+	OptionsMongo,
+	OptionsMYSQL,
+	OptionsMaria,
+	OptionsPost,
+	OptionsSqlite,
+	MikroORMConnectionOptions,
+	ormMap,
+	initORM,
+	BSMikroORM,
+	MongoMikroORM,
+	MYSQLMikroORM,
+	MariaMicroORM,
+	PostMikroORM,
+	SqliteMiroOrm,
+	BSEntityManager,
+	MongoEntityManager,
+	MYSQLEntityManager,
+	MariaEntityManager,
+	PostEntityManager,
+	SqliteEntityManager,
+	BSEntityRepository,
+	MongoEntityRepository,
+	MYSQLEntityRepository,
+	MariaEntityRepository,
+	PostEntityRepository,
+	SqliteEntityRepository,
+	defineBSConfig,
+	defineMongoConfig,
+	defineMYSQLConfig,
+	defineMariaConfig,
+	definePostConfig,
+	defineSqliteConfig,
+}; */

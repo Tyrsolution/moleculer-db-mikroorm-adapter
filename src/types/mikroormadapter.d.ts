@@ -39,9 +39,9 @@ import {
 	EntityFactory,
 	EntityHelper,
 	EntityLoader,
-	EntityManager,
+	// EntityManager,
 	EntityMetadata,
-	EntityRepository,
+	// EntityRepository,
 	EntitySchema,
 	EntitySerializer,
 	EntityTransformer,
@@ -285,65 +285,108 @@ import {
 	EntityManagerType,
 } from '@mikro-orm/core';
 import { AutoPath } from '@mikro-orm/core/typings';
-import { Context, Service, ServiceBroker, ServiceSchema } from 'moleculer';
-import type {
-	MikroORMConnection,
-	MikroORMConnectionOptions,
-} from '../adapter/connectionManager/connection';
+import moleculer, { Context, Service, ServiceBroker, ServiceSchema } from 'moleculer';
+import { ObjectId } from '@mikro-orm/mongodb';
 import {
-	BSMikroORM,
-	MongoMikroORM,
-	MYSQLMikroORM,
-	MariaMicroORM,
-	PostMikroORM,
-	SqliteMiroOrm,
-	BSEntityManager,
-	MongoEntityManager,
-	MYSQLEntityManager,
-	MariaEntityManager,
-	PostEntityManager,
-	SqliteEntityManager,
-	BSEntityRepository,
-	MongoEntityRepository,
-	MYSQLEntityRepository,
-	MariaEntityRepository,
-	PostEntityRepository,
-	SqliteEntityRepository,
-	defineBSConfig,
-	defineMongoConfig,
-	defineMYSQLConfig,
-	defineMariaConfig,
-	definePostConfig,
-	defineSqliteConfig,
-} from '../adapter/connectionManager/connection';
+	MikroORM as BSMikroORM,
+	Options as BSOptions,
+	EntityManager as BSEntityManager,
+	EntityRepository as BSEntityRepository,
+	// defineConfig as defineBSConfig,
+} from '@mikro-orm/better-sqlite';
+import {
+	MikroORM as MongoMikroORM,
+	Options as MongoOptions,
+	EntityManager as MongoEntityManager,
+	EntityRepository as MongoEntityRepository,
+	// defineConfig as defineMongoConfig,
+} from '@mikro-orm/mongodb';
+import {
+	MikroORM as MYSQLMikroORM,
+	Options as MYSQLOptions,
+	EntityManager as MYSQLEntityManager,
+	EntityRepository as MYSQLEntityRepository,
+	// defineConfig as defineMYSQLConfig,
+} from '@mikro-orm/mysql';
+import {
+	MikroORM as MariaMicroORM,
+	Options as MariaOptions,
+	EntityManager as MariaEntityManager,
+	EntityRepository as MariaEntityRepository,
+	// defineConfig as defineMariaConfig,
+} from '@mikro-orm/mariadb';
+import {
+	MikroORM as PostMikroORM,
+	Options as PostOptions,
+	EntityManager as PostEntityManager,
+	EntityRepository as PostEntityRepository,
+	// defineConfig as definePostConfig,
+} from '@mikro-orm/postgresql';
+import {
+	MikroORM as SqliteMiroOrm,
+	Options as SqliteOptions,
+	EntityManager as SqliteEntityManager,
+	EntityRepository as SqliteEntityRepository,
+	// defineConfig as defineSqliteConfig,
+} from '@mikro-orm/sqlite';
 import { ConnectionManager } from './connectionManager';
-export type { MikroORMConnection, MikroORMConnectionOptions };
-export {
-	BSMikroORM,
-	MongoMikroORM,
-	MYSQLMikroORM,
-	MariaMicroORM,
-	PostMikroORM,
-	SqliteMiroOrm,
-	BSEntityManager,
-	MongoEntityManager,
-	MYSQLEntityManager,
-	MariaEntityManager,
-	PostEntityManager,
-	SqliteEntityManager,
-	BSEntityRepository,
-	MongoEntityRepository,
-	MYSQLEntityRepository,
-	MariaEntityRepository,
-	PostEntityRepository,
-	SqliteEntityRepository,
-	defineBSConfig,
-	defineMongoConfig,
-	defineMYSQLConfig,
-	defineMariaConfig,
-	definePostConfig,
-	defineSqliteConfig,
-};
+export type MikroORMConnection =
+	| BSMikroORM
+	| MongoMikroORM
+	| MYSQLMikroORM
+	| MariaMicroORM
+	| PostMikroORM
+	| SqliteMiroOrm;
+export type EntityManager =
+	| BSEntityManager
+	| MongoEntityManager
+	| MYSQLEntityManager
+	| MariaEntityManager
+	| PostEntityManager
+	| SqliteEntityManager;
+export type EntityRepository<T extends object> =
+	| BSEntityRepository<T>
+	| MongoEntityRepository<T>
+	| MYSQLEntityRepository<T>
+	| MariaEntityRepository<T>
+	| PostEntityRepository<T>
+	| SqliteEntityRepository<T>;
+export interface Services<
+	T extends MikroORMConnection,
+	U extends EntityManager,
+	V extends EntityRepository<any>,
+> {
+	orm: T;
+	entityManager: U;
+	entityRepository: V;
+}
+export interface BaseOptions {
+	type: string;
+}
+export interface OptionsBS extends BaseOptions, BSOptions {}
+export interface OptionsMongo extends BaseOptions, MongoOptions {}
+export interface OptionsMYSQL extends BaseOptions, MYSQLOptions {}
+export interface OptionsMaria extends BaseOptions, MariaOptions {}
+export interface OptionsPost extends BaseOptions, PostOptions {}
+export interface OptionsSqlite extends BaseOptions, SqliteOptions {}
+export type MikroORMConnectionOptions =
+	| OptionsBS
+	| OptionsMongo
+	| OptionsMYSQL
+	| OptionsMaria
+	| OptionsPost
+	| OptionsSqlite;
+export function defineBSConfig(options: OptionsBS): OptionsBS;
+export function defineMongoConfig(options: OptionsMongo): OptionsMongo;
+export function defineMYSQLConfig(options: OptionsMYSQL): OptionsMYSQL;
+export function defineMariaConfig(options: OptionsMaria): OptionsMaria;
+export function definePostConfig(options: OptionsPost): OptionsPost;
+export function defineSqliteConfig(options: OptionsSqlite): OptionsSqlite;
+export function initORM(
+	config: MikroORMConnectionOptions,
+	ormMapObject?: object,
+	// options?: MikroORMConnectionOptions,
+): Promise<Services<MikroORMConnection, EntityManager, EntityRepository<any>> | undefined>;
 export {
 	AbstractNamingStrategy,
 	AbstractSchemaGenerator,
@@ -378,9 +421,9 @@ export {
 	EntityFactory,
 	EntityHelper,
 	EntityLoader,
-	EntityManager,
+	// EntityManager,
 	EntityMetadata,
-	EntityRepository,
+	// EntityRepository,
 	EntitySchema,
 	EntitySerializer,
 	EntityTransformer,
@@ -622,6 +665,7 @@ export {
 	SeederOptions,
 	Transaction,
 };
+export function MikroORMServiceSchemaMixin(mixinOptions?: any): ServiceSchema;
 
 export interface ListParams {
 	/**
@@ -730,7 +774,6 @@ export interface ListParams {
 	 */
 	transaction?: boolean;
 }
-
 export interface DbAdapter<
 	MKRMEntity extends AnyEntity,
 	D extends IDatabaseDriver = IDatabaseDriver,
@@ -738,18 +781,50 @@ export interface DbAdapter<
 	// #region DbAdapter properties
 	[key: string]: any;
 	/**
-	 * Mikro-ORM MKRMEntity Repository
+	 * Grants access to the entity repository of the connection.
+	 * Called using this.adapter.repository
+	 * @static
+	 * @property {Repository<Entity>} repository - Mikro-ORM repository
+	 *
+	 * @properties
 	 */
 	repository: EntityRepository<MKRMEntity> | undefined;
 	/**
-	 * Mikro-ORM MKRMEntity Manager
+	 * MGrants access to the entity manager of the connection.
+	 * Called using this.adapter.manager
+	 * @static
+	 * @property {EntityManager} manager - Mikro-ORM entity manager
+	 *
+	 * @properties
 	 */
 	manager: D[typeof EntityManagerType] & EntityManager;
 	/**
-	 * Mikro-ORM Adapter Connection Manager
+	 * Grants access to the connection manager instance which is used to create and manage connections.
+	 * Called using this.adapter.connectionManager
+	 *
+	 * @static
+	 * @property {ConnectionManager} connectionManager - Adapter connection manager. Use `this.adapter.connectionManager` to access.
+	 *
+	 * @properties
 	 */
 	connectionManager: ConnectionManager | undefined;
+	/**
+	 * Represents the MikroORM connection.
+	 *
+	 * The MikroORM connection is used to interact with the database. It can be undefined if the MikroORM adapter is not connected to a database.
+	 *
+	 * @type {MikroORMConnection | undefined}
+	 */
 	orm: MikroORM<D>;
+	/**
+	 * Represents the logger instance used by the service.
+	 *
+	 * The logger instance is used to log information, warnings, errors, etc. during the execution of the service. It can be undefined if the
+	 * service does not have a logger instance.
+	 *
+	 * @type {moleculer.LoggerInstance | undefined}
+	 */
+	logger: moleculer.LoggerInstance | undefined;
 	// #endregion DbAdapter properties
 	// #region MicroORM orm methods
 	/**
@@ -823,21 +898,21 @@ export interface DbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_persist(entity: AnyEntity | AnyEntity[]): EntityManager;
+	// _persist(entity: AnyEntity | AnyEntity[]): EntityManager;
 	/**
 	 * Persists your entity immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.persist(e).flush()`.
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
+	// _persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
 	/**
 	 * Tells the EntityManager to make an instance managed and persistent.
 	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `persist()`
 	 */
-	_persistLater(entity: AnyEntity | AnyEntity[]): void;
+	// _persistLater(entity: AnyEntity | AnyEntity[]): void;
 	/**
 	 * Finds first entity matching your `where` query.
 	 */
@@ -938,21 +1013,21 @@ export interface DbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_remove(entity: AnyEntity): EntityManager;
+	// _remove(entity: AnyEntity): EntityManager;
 	/**
 	 * Removes an entity instance immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.remove(e).flush()`
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_removeAndFlush(entity: AnyEntity): Promise<void>;
+	// _removeAndFlush(entity: AnyEntity): Promise<void>;
 	/**
 	 * Marks entity for removal.
 	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `remove()`
 	 */
-	_removeLater(entity: AnyEntity): void;
+	// _removeLater(entity: AnyEntity): void;
 	/**
 	 * Flushes all changes to objects that have been queued up to now to the database.
 	 * This effectively synchronizes the in-memory state of managed objects with the database.
@@ -961,7 +1036,7 @@ export interface DbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	_flush(): Promise<void>;
+	// _flush(): Promise<void>;
 	/**
 	 * Fires native insert query. Calling this has no side effects on the context (identity map).
 	 */
@@ -1036,7 +1111,7 @@ export interface DbAdapter<
 	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
 	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	_create<P = never>(data: RequiredEntityData<MKRMEntity>, options?: CreateOptions): MKRMEntity;
+	_create<P extends MKRMEntity>(data: RequiredEntityData<P>, options?: CreateOptions): Promise<P>;
 	/**
 	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
@@ -1047,7 +1122,17 @@ export interface DbAdapter<
 	 */
 	_merge(data: MKRMEntity | EntityData<MKRMEntity>, options?: MergeOptions): MKRMEntity;
 	/**
-	 * Returns total number of entities matching your `where` query.
+	 * Counts the number of documents that match the provided parameters.
+	 *
+	 * This method does the following:
+	 * - Removes pagination parameters (`limit` and `offset`) from the provided parameters.
+	 * - Calls the `count` method of the adapter with the provided parameters.
+	 *
+	 * @methods
+	 * @param {Context} ctx - The context for the count operation.
+	 * @param {Object?} params - The parameters for the count operation.
+	 *
+	 * @returns {number} The number of documents that match the provided parameters.
 	 */
 	_count<P extends string = never>(
 		where?: FilterQuery<MKRMEntity>,
@@ -1056,7 +1141,7 @@ export interface DbAdapter<
 	/**
 	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
 	 */
-	get em(): EntityManager;
+	// get em(): EntityManager;
 	/**
 	 * Returns the underlying EntityManager instance
 	 */
@@ -1070,70 +1155,127 @@ export interface DbAdapter<
 	// #region Moleculer-db methods
 	/** Moleculer-db methods */
 	/**
-	 * Convert DB entity to JSON object
+	 * Converts an entity to a JavaScript object.
+	 *
+	 * This method currently returns the entity as is. It can be overridden in subclasses to provide custom entity to object conversion.
 	 *
 	 * @methods
-	 * @public
-	 * @param {any} entity
-	 * @returns {Object}
-	 *
+	 * @param {any} entity - The entity to convert.
+	 * @returns {object} The converted object.
+	 * @memberof MikroORMDbAdapter
 	 */
 	entityToObject(entity: any): object;
 	/**
-	 * Convert DB entity to JSON object
+	 * Transforms the ID field of an entity before saving it to the database.
 	 *
-	 * @param {any} entity
-	 * @returns {Object}
-	 * @memberof MemoryDbAdapter
-	 */
-	entityToObject(entity: any): any;
-	/**
-	 * Transforms user defined idField into expected db id field.
+	 * This method does the following:
+	 * - Creates a deep copy of the entity.
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field and the entity has the provided ID field, it does the following:
+	 *   - Sets the value of the database ID field in the new entity to the value of the provided ID field.
+	 *   - Deletes the provided ID field from the new entity.
+	 * - Returns the new entity.
 	 *
 	 * @methods
-	 * @public
-	 * @param {Object} entity
-	 * @param {String} idField
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {Object} - Modified entity
 	 *
-	 * @returns {Object} Modified entity
-	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	beforeSaveTransformID(entity: Record<string, any>, idField: string): object;
 	/**
-	 * Transforms 'idField' into NeDB's '_id'
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @memberof MemoryDbAdapter
-	 * @returns {Object} Modified entity
+	 * Transforms the ID field of an entity before saving it to the database.
+	 *
+	 * This method does the following:
+	 * - Creates a deep copy of the entity.
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field and the entity has the provided ID field, it does the following:
+	 *   - Sets the value of the database ID field in the new entity to the value of the provided ID field.
+	 *   - Deletes the provided ID field from the new entity.
+	 * - Returns the new entity.
+	 *
+	 * @methods
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {Object} - Modified entity
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	beforeSaveTransformID(entity: any, idField: string): any;
 	/**
-	 * Transforms db field into user defined idField service property
+	 * Transforms the ID field of an entity after retrieving it from the database.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - Creates a deep copy of the entity.
+	 * - If the entity does not have the provided ID field but has the database ID field, it does the following:
+	 *   - Sets the value of the provided ID field in the new entity to the value of the database ID field.
+	 *   - Deletes the database ID field from the new entity.
+	 * - Returns the new entity.
 	 *
 	 * @methods
-	 * @public
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @returns {Object} Modified entity
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {object} The transformed entity.
 	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	AfterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
+	afterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
+	/**
+	 * ransforms the ID field of an entity after retrieving it from the database.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - Creates a deep copy of the entity.
+	 * - If the entity does not have the provided ID field but has the database ID field, it does the following:
+	 *   - Sets the value of the provided ID field in the new entity to the value of the database ID field.
+	 *   - Deletes the database ID field from the new entity.
+	 * - Returns the new entity.
+	 *
+	 * @methods
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {object} The transformed entity.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	afterRetrieveTransformID(entity: any, idField: string): any;
 	/** Additional custom methods */
 	/**
-	 * Transform user defined idField service property into the expected id field of db.
+	 * Transforms the ID field of a query before executing it.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field, returns the database ID field; otherwise, returns the provided ID field.
+	 *
 	 * @methods
-	 * @param {any} idField
-	 * @returns {any}
+	 * @param {any} idField - The ID field to transform.
+	 * @returns {any} The transformed ID field.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	beforeQueryTransformID(idField: any): any;
 	/**
-	 * Count number of matching documents in the db to a query.
+	 * Asynchronously counts the number of entities in the database that match the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_count` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities that match the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_COUNT', and the error details.
 	 *
 	 * @methods
-	 * @param {FilterQuery<T>} where - count options
-	 * @param {CountOptions<T, P>} options - query options
-	 * @returns {Promise<number>}
+	 * @param {FilterQuery<T>} [where] - The filter query to match the entities against.
+	 * @param {CountOptions<T, P>} [options] - Optional settings for the count operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities that match the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_COUNT', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	count<T extends MKRMEntity, P extends string>(
@@ -1141,13 +1283,34 @@ export interface DbAdapter<
 		options?: CountOptions<T, P>,
 	): Promise<number>;
 	/**
-	 * Create new record or records.
-	 * If record exists it is skipped, otherwise it is created.
+	 * Asynchronously creates one or more entities in the database.
+	 *
+	 * This method does the following:
+	 * - Logs a message indicating that it's attempting to create the entity or entities.
+	 * - Defines a function `handleError` that logs an error message and returns a `MoleculerServerError` with the error message,
+	 *   a 500 status code, and the error details.
+	 * - Defines a function `persistEntity` that attempts to persist the entity in the database and flush the changes.
+	 *   If the operation fails, it calls `handleError` with the error.
+	 * - Tries to do the following:
+	 *   - If the `entityOrEntities` parameter is an array, it does the following:
+	 *     - Calls the `_create` method for each entity in the array and waits for all the promises to resolve.
+	 *     - Logs a message indicating that the entities have been created.
+	 *     - Logs a message indicating that it's attempting to persist the created entities and flush the changes.
+	 *     - Returns a promise that resolves when all the entities have been persisted and the changes have been flushed.
+	 *   - If the `entityOrEntities` parameter is not an array, it does the following:
+	 *     - Calls the `_create` method for the entity and waits for the promise to resolve.
+	 *     - Logs a message indicating that it's attempting to persist the created entity and flush the changes.
+	 *     - Returns a promise that resolves when the entity has been persisted and the changes have been flushed.
+	 * - If any error occurs, it throws the error returned by `handleError`.
 	 *
 	 * @methods
-	 * @param {Object | Object[]} entityOrEntities - record(s) to create
-	 * @param {Object?} options - Optional create options
-	 * @returns {Promise<Object | Object[]>>}
+	 * @param {RequiredEntityData<T> | RequiredEntityData<T>[]} entityOrEntities - The data for the entity or entities to create.
+	 * @param {CreateOptions} [options] - Optional settings for the creation operation.
+	 *
+	 * @returns {Promise<T | T[]>} A promise that resolves with the created entity or entities.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, and the error details.
 	 * @memberof MikroORMDbAdapter
 	 */
 	create<T extends MKRMEntity>(
@@ -1155,27 +1318,48 @@ export interface DbAdapter<
 		options?: CreateOptions,
 	): Promise<T | T[]>;
 	/**
-	 * Create one or many new entities.
+	 * Asynchronously inserts one or more entities into the database.
+	 *
+	 * This method is a wrapper around the `create` method. It takes the same parameters and returns the same type of promise.
 	 *
 	 * @methods
+	 * @param {RequiredEntityData<T> | RequiredEntityData<T>[]} entityOrEntities - The data for the entity or entities to insert.
+	 * @param {CreateOptions} [options] - Optional settings for the insertion operation.
 	 *
-	 * @param {Object?} entityOrEntities - entity or entities to create.
-	 * @param {Object?} options - Insert options.
+	 * @returns {Promise<T | T[]>} A promise that resolves with the inserted entity or entities.
 	 *
-	 * @returns {Object|Object[]} Saved entity(ies).
+	 * @memberof MikroORMDbAdapter
 	 */
 	insert<T extends MKRMEntity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
 		options?: CreateOptions,
 	): Promise<T | T[]>;
 	/**
-	 * Update an entity by ID
+	 * Asynchronously updates an entity in the database by its ID.
+	 *
+	 * This method does the following:
+	 * - Logs a message indicating that it's attempting to update the entity with the provided ID.
+	 * - Transforms the ID using the `beforeQueryTransformID` method.
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeUpdate` method with the transformed ID, the update data, and the options, and waits for the promise to resolve.
+	 *   - Logs a message indicating that the entity has been updated.
+	 *   - Calls the `findById` method with the original ID, and waits for the promise to resolve.
+	 *   - Logs a message indicating that it's transforming the updated entity.
+	 *   - Returns the updated entity transformed by the `afterRetrieveTransformID` method.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_UPDATE_BY_ID', and the error details.
+	 *
 	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {any} id - ID of record to be updated
-	 * @param {Object} update - Object with update data
-	 * @param {Object} options - Object with update options
-	 * @returns {Promise} - Updated record
+	 * @param {any} id - The ID of the entity to update.
+	 * @param {EntityData<T>} update - The data to update the entity with.
+	 * @param {UpdateOptions<T>} [options] - Optional settings for the update operation.
+	 *
+	 * @returns {Promise<T>} A promise that resolves with the updated entity.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_UPDATE_BY_ID', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	updateById<T extends MKRMEntity>(
@@ -1184,30 +1368,73 @@ export interface DbAdapter<
 		options?: UpdateOptions<T>,
 	): Promise<any>;
 	/**
-	 * Remove an entity by ID
+	 * Asynchronously removes an entity from the database by its ID.
 	 *
-	 * @param {any} id
-	 * @param {DeleteOptions<T>} options
-	 * @returns {Promise<number>}
+	 * This method does the following:
+	 * - Transforms the ID using the `beforeQueryTransformID` method.
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeDelete` method with an object that has a property with the name of the transformed ID and the value of the original ID,
+	 *     and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities removed.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_REMOVE_BY_ID', and the error details.
+	 *
+	 * @methods
+	 * @param {any} id - The ID of the entity to remove.
+	 * @param {DeleteOptions<T>} [options] - Optional settings for the remove operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities removed.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_REMOVE_BY_ID', and the error details.
+	 *
 	 * @memberof MemoryDbAdapter
 	 */
 	removeById<T extends MKRMEntity>(id: any, options?: DeleteOptions<T>): Promise<number>;
 	/**
-	 * Remove many entities by ID
+	 * Asynchronously removes multiple entities from the database by their IDs.
 	 *
-	 * @param {any[]} id
-	 * @param {DeleteOptions<T>} options
-	 * @returns {Promise<number>}
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeDelete` method with the array of IDs and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities removed.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_REMOVE_MANY_BY_ID', and the error details.
+	 *
+	 * @methods
+	 * @param {any[]} id - The IDs of the entities to remove.
+	 * @param {DeleteOptions<T>} [options] - Optional settings for the remove operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities removed.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_REMOVE_MANY_BY_ID', and the error details.
+	 *
 	 * @memberof MemoryDbAdapter
 	 */
 	removeMany<T extends MKRMEntity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
 	/**
-	 * Finds entities that match given find options.
+	 * Asynchronously finds entities in the database that match the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_find` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the entities that match the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND', and the error details.
 	 *
 	 * @methods
-	 * @param {FilterQuery<T>} where - request context
-	 * @param {FindOptions<T, P>} options - find many options
-	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>}
+	 * @param {FilterQuery<T>} where - The filter query to match the entities against.
+	 * @param {FindOptions<T, P>?} [options] - Optional settings for the find operation.
+	 *
+	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>} A promise that resolves with the entities that match the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, the error code 'FAILED_TO_FIND', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	find<T extends MKRMEntity, P extends string>(
@@ -1215,8 +1442,16 @@ export interface DbAdapter<
 		options?: FindOptions<T, P>,
 	): Promise<Loaded<T, P> | Loaded<T, P>[]>;
 	/**
-	 * Finds first item by a given find options.
-	 * If entity was not found in the database - returns null.
+	 * Asynchronously finds a single entity in the database that matches the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_findOne` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the entity that matches the filter query, or null if no entity matches the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND_ONE', and the error details.
+	 *
 	 * Available Options props:
 	 * - comment
 	 * - select
@@ -1233,10 +1468,14 @@ export interface DbAdapter<
 	 * - transaction
 	 *
 	 * @methods
-	 * @param {FilterQuery<T>} where - request context
-	 * @param {FindOneOptions<T, P>} options - find options
-	 * @returns {Promise<null | Loaded<T, P>>}
-	 * @memberof MikroORMDbAdapter
+	 * @param {FilterQuery<T>} where - The filter query to match the entity against.
+	 * @param {FindOneOptions<T, P>} [options] - Optional settings for the find operation.
+	 *
+	 * @returns {Promise<null | Loaded<T, P>>} A promise that resolves with the entity that matches the filter query,
+	 * or null if no entity matches the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_FIND_ONE', and the error details.
 	 */
 	findOne<T extends MKRMEntity, P extends string>(
 		where: FilterQuery<T>,
@@ -1244,197 +1483,384 @@ export interface DbAdapter<
 	): Promise<null | Loaded<T, P>>;
 
 	/**
-	 * Gets item by id. No find options
+	 * Asynchronously finds an entity in the database by its ID. No find options can be provided.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_find` method with the ID, and waits for the promise to resolve.
+	 *   - Returns the first entity that matches the ID, or undefined if no entity matches the ID.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND_BY_ID', and the error details.
 	 *
 	 * @methods
-	 * @param {string | number | string[] | number[]} id - id(s) of entity
-	 * @returns {Promise<T | undefined>}
+	 * @param {string | number | string[] | number[]} id - The ID of the entity to find.
+	 *
+	 * @returns {Promise<T | undefined>} A promise that resolves with the entity that matches the ID, or undefined if no entity matches the ID.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_FIND_BY_ID', and the error details.
+	 * Gets item by id(s).
+	 *
+	 * @memberof MikroORMDbAdapter
 	 *
 	 */
 	findById<T extends MKRMEntity>(
 		id: string | number | string[] | number[],
 	): Promise<T | undefined>;
 	/**
-	 * Populates entity(ies) by id(s) of another record.
+	 * Asynchronously retrieves population data based on the provided parameters.
+	 *
+	 * This method does the following:
+	 * - Extracts the ID from the parameters.
+	 * - Determines whether mapping should be performed based on the parameters.
+	 * - Tries to do the following:
+	 *   - Calls the `findById` method with the ID, and waits for the promise to resolve.
+	 *   - If no document is found, throws a `MoleculerServerError`.
+	 *   - If mapping should be performed, clones the document; otherwise, uses the original document.
+	 *   - Transforms the document into JSON.
+	 *   - If mapping should not be performed, returns the JSON.
+	 *   - If mapping should be performed, creates a new object and maps the JSON to it, using the transformed ID as the key.
+	 *   - Returns the mapped object.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws the error.
 	 *
 	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {any} [params] - The parameters of the request.
 	 *
-	 * @param {Context} ctx - Context instance.
-	 * @param {Object?} params - Parameters.
+	 * @returns {Promise<object | object[]>} A promise that resolves with the population data.
 	 *
-	 * @returns {Object|Array<Object>} Found entity(ies).
+	 * @throws {Errors.MoleculerServerError} If no document is found, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, and the error code 'FAILED_TO_FIND_BY_ID'.
 	 *
-	 * @throws {EntityNotFoundError} - 404 MKRMEntity not found
+	 * @memberof MikroORMDbAdapter
 	 */
-	getPopulations(ctx: Context, params?: any): object | object[];
-	/**
-	 * Gets items by id.
-	 *
-	 * @methods
-	 * @param {Context} ctx - Request context
-	 * @param {Partial<T>} key - primary db id column name
-	 * @param {Array<string> | Array<number>} ids - ids of entity
-	 * @returns {Promise<T | undefined>}
-	 * @deprecated - use findById instead. It now supports multiple ids
-	 *
-	 */
-	findByIds<T extends MKRMEntity>(
-		ctx: Context,
-		key: string | undefined | null,
-		ids: any[],
-	): Promise<T | undefined>;
+	getPopulations(ctx: Context, params?: any): Promise<object | object[]>;
 
 	/**
-	 * List entities by filters and pagination results.
+	 * Asynchronously lists entities in the database based on the provided parameters.
+	 *
+	 * This method does the following:
+	 * - Creates a copy of the parameters for counting entities.
+	 * - Removes pagination parameters from the count parameters.
+	 * - If no limit is provided, sets the limit based on the service settings and the page size.
+	 * - Logs a debug message with the listing parameters.
+	 * - Tries to do the following:
+	 *   - Calls the `_findAndCount` method with the parameters, and waits for the promise to resolve.
+	 *   - Transforms the found documents into JSON.
+	 *   - Returns an object with the following properties:
+	 *     - `rows`: The transformed documents.
+	 *     - `total`: The total number of entities.
+	 *     - `page`: The current page.
+	 *     - `pageSize`: The page size.
+	 *     - `totalPages`: The total number of pages.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_LIST', and the error details.
 	 *
 	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {ListParams<Object>?} params - The parameters of the request.
 	 *
-	 * @param {Context} ctx - Context instance.
-	 * @param {Object?} params - Parameters.
+	 * @returns {Promise<object>} A promise that resolves with an object containing the listed entities and pagination information.
 	 *
-	 * @returns {Object} List of found entities and count.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, the error code 'FAILED_TO_LIST', and the error details.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	list(ctx: any, params: ListParams): Promise<any>;
+	list(ctx: any, params: ListParams): Promise<object>;
 
 	/**
-	 * Transforms NeDB's '_id' into user defined 'idField'
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @memberof MemoryDbAdapter
-	 * @returns {Object} Modified entity
-	 */
-	// AfterRetrieveTransformID(entity: any, idField: string): any;
-
-	/**
-	 * Encode ID of entity.
+	 * Encodes the ID of an entity.
+	 *
+	 * This method currently returns the ID as is. It can be overridden in subclasses to provide custom ID encoding.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to encode.
+	 * @returns {any} The encoded ID.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	encodeID(id: any): any;
 
 	/**
-	 * Decode ID of entity.
+	 * Decodes the provided ID.
+	 *
+	 * This method currently returns the provided ID as it is. It can be overridden in subclasses to provide custom decoding logic.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to decode.
+	 *
+	 * @returns {any} The decoded ID.
 	 */
 	decodeID(id: any): any;
 
 	/**
-	 * Convert id to mongodb ObjectId.
+	 * Converts a given ID to a MongoDB ObjectId.
+	 *
+	 * This method is used when working with MongoDB, where the IDs are usually of the ObjectId type.
+	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to convert.
+	 * @returns {ObjectId} The converted ObjectId.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	// ToMongoObjectId(id: any): ObjectId;
+	toMongoObjectId(id: any): ObjectId;
 
 	/**
-	 * Convert mongodb ObjectId to string.
+	 * Converts a given MongoDB ObjectId to a string.
+	 *
+	 * This method is used when working with MongoDB, where the IDs are usually of the ObjectId type.
+	 * It converts the ObjectId back to a string for use in the application.
+	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The MongoDB ObjectId to convert.
+	 * @returns {string} The converted string ID.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	fromMongoObjectId(id: any): string;
 
 	/**
-	 * Transform the fetched documents
+	 * ransforms documents after retrieving them from the database.
+	 *
+	 * This method does the following:
+	 * - Logs a debug message.
+	 * - Determines the user-defined ID field from the service settings.
+	 * - Checks if the documents are an array or an object.
+	 * - If the documents are an object, converts them to an array.
+	 * - Tries to do the following:
+	 *   - Converts the documents to JavaScript objects.
+	 *   - Applies the user-defined ID field to the documents.
+	 *   - Encodes the IDs of the documents.
+	 *   - If the context and the populate parameter are provided, populates the documents.
+	 *   - If the context and the fields parameter are provided, filters the fields of the documents.
+	 *   - If the excludeFields parameter is provided, excludes the specified fields from the documents.
+	 *   - Returns the transformed documents and populates the document with the relations specified in the populate service property.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_TRANSFORM_DOCUMENTS', and the error details.
+	 *
 	 * @methods
-	 * @param {Context} ctx
-	 * @param {Object} 	params
-	 * @param {Array|Object} docs
-	 * @returns {Array|Object}
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Object} params - The parameters of the request.
+	 * @param {Array|Object} docs - The documents to transform.
+	 * @returns {Promise<any[] | object>} A promise that resolves with the transformed documents.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_TRANSFORM_DOCUMENTS', and the error details.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	transformDocuments(ctx: any, params: any, docs: any): any;
+	transformDocuments(ctx: Context, params: any, docs: any): Promise<any[] | object>;
 
 	/**
-	 * Call before entity lifecycle events
+	 * Executes a hook (before entity lifecycle event) before an entity change operation.
+	 *
+	 * This method does the following:
+	 * - Constructs the event name based on the type of the operation.
+	 * - If there is no hook for the event in the service schema, returns the entity as is.
+	 * - If there is a hook for the event in the service schema, calls the hook with the entity and the context, and waits for the promise to resolve.
+	 * - Returns the result of the hook, or the entity if there is no hook.
 	 *
 	 * @methods
-	 * @param {String} type
-	 * @param {Object} entity
-	 * @param {Context} ctx
-	 * @returns {Promise}
+	 * @param {string | undefined} type - The type of the operation. This should be 'Create', 'Update', or 'Remove'.
+	 * @param {Object} entity - The entity to be changed.
+	 * @param {Context} ctx - The context of the operation.
+	 * @returns {Promise<any>} A promise that resolves with the result of the hook, or the entity if there is no hook.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any>;
+	beforeEntityChange(type: string | undefined, entity: object, ctx: Context): Promise<any>;
 
 	/**
-	 * Clear the cache & call entity lifecycle events
+	 * CExecutes a hook after an entity change operation and clears the cache.
+	 *
+	 * This method does the following:
+	 * - Clears the cache.
+	 * - Constructs the event name based on the type of the operation.
+	 * - If there is no hook for the event in the service schema, returns undefined.
+	 * - If there is a hook for the event in the service schema, calls the hook with the entity and the context, and waits for the promise to resolve.
+	 * - Returns the result of the hook.
 	 *
 	 * @methods
-	 * @param {String} type
-	 * @param {Object|Array<Object>|Number} json
-	 * @param {Context} ctx
-	 * @returns {Promise}
+	 * @param {string | undefined} type - The type of the operation. This should be 'Create', 'Update', or 'Remove'.
+	 * @param {Object|Array<Object>|Number} json - The entity that was changed.
+	 * @param {Context} ctx - The context of the operation.
+	 * @returns {Promise<any>} A promise that resolves with the result of the hook, or undefined if there is no hook.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	entityChanged(type: string | undefined, json: any, ctx: any): Promise<any>;
+	entityChanged(
+		type: string | undefined,
+		json: object | object[] | number,
+		ctx: Context,
+	): Promise<any>;
 	/**
-	 * Clear cached entities
+	 * Clears the cache for this service.
+	 *
+	 * This method does the following:
+	 * - Emits a cache clean event for this service.
+	 * - If a cacher is available, cleans the cache for this service.
 	 *
 	 * @methods
-	 * @returns {Promise}
+	 * @returns {Promise<any>} A promise that resolves when the cache is cleaned. If no cacher is available, the promise resolves immediately.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	clearCache(): Promise<any>;
 	/**
-	 * Filter fields in the entity object
+	 * Filters the fields of a document.
 	 *
-	 * @param {Object} 	doc
-	 * @param {Array<String>} 	fields	Filter properties of model.
-	 * @returns	{Object}
-	 */
-	filterFields(doc: any, fields: any[]): any;
-	/**
-	 * Exclude fields in the entity object
-	 *
-	 * @param {Object} 	doc
-	 * @param {Array<String>} 	fields	Exclude properties of model.
-	 * @returns	{Object}
-	 */
-	excludeFields(doc: any, fields: string | any[]): any;
-
-	/**
-	 * Exclude fields in the entity object. Internal use only, must ensure `fields` is an Array
-	 */
-	_excludeFields(doc: any, fields: any[]): any;
-
-	/**
-	 * Populate documents.
-	 *
-	 * @param {Context} 		ctx
-	 * @param {Array|Object} 	docs
-	 * @param {Array?}			populateFields
-	 * @returns	{Promise}
-	 */
-	populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any>;
-	/**
-	 * Validate an entity by validator.
-	 * @methods
-	 * @param {Object} entity
-	 * @returns {Promise}
-	 */
-	validateEntity(entity: any): Promise<any>;
-	/**
-	 * Authorize the required field list. Remove fields which is not exist in the `this.settings.fields`
-	 *
-	 * @param {Array} askedFields
-	 * @returns {Array}
-	 */
-	authorizeFields(askedFields: any[]): any[];
-	/**
-	 * Sanitize context parameters at `find` action.
+	 * This method does the following:
+	 * - If the fields parameter is an array, it does the following:
+	 *   - Reduces the fields array to a new object that only includes the specified fields from the document.
+	 *   - If a field is not found in the document, it is not included in the new object.
+	 *   - Returns the new object.
+	 * - If the fields parameter is not an array, it returns the document as is.
 	 *
 	 * @methods
+	 * @param {Object} doc - The document to filter.
+	 * @param {string[]} fields - The fields to include in the filtered document.
+	 * @returns {object} The filtered document.
 	 *
-	 * @param {Context} ctx - Request context
-	 * @param {Object} params - Request parameters
-	 * @returns {Object} - Sanitized parameters
 	 * @memberof MikroORMDbAdapter
 	 */
-	sanitizeParams(ctx: any, params: any): any;
+	filterFields(doc: object, fields: any[]): object;
+	/**
+	 * Excludes specified fields from a document.
+	 *
+	 * This method does the following:
+	 * - If the fields parameter is a string, it converts it to an array.
+	 * - If the fields array is not empty, it calls the `_excludeFields` method with the document and the fields array, and returns the result.
+	 * - If the fields array is empty, it returns the document as is.
+	 *
+	 * @methods
+	 * @param {any} doc - The document to exclude fields from.
+	 * @param {string | string[]} fields - The fields to exclude from the document. This can be a string or an array of strings.
+	 * @returns {object} The document with the specified fields excluded.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	excludeFields(doc: object, fields: string | string[]): object;
+
+	/**
+	 * Excludes specified fields from a document. Internal use only, must ensure `fields` is an Array
+	 *
+	 * This method does the following:
+	 * - Clones the document.
+	 * - For each field in the fields array, it removes the field from the cloned document.
+	 * - Returns the cloned document.
+	 *
+	 * @methods
+	 * @param {Object} doc - The document to exclude fields from.
+	 * @param {String[]} fields - The fields to exclude from the document.
+	 * @returns {object} The document with the specified fields excluded.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	_excludeFields(doc: object, fields: any[]): object;
+
+	/**
+	 * Populates documents with additional data based on the provided fields.
+	 *
+	 * This method does the following:
+	 * - Logs a debug message.
+	 * - Checks if the service settings include populates, if the populateFields parameter is an array,
+	 *   and if it is not empty. If any of these conditions are not met, it returns the documents as is.
+	 * - Checks if the documents are null, not an object, or not an array. If any of these conditions are met,
+	 *   it returns the documents as is.
+	 * - Groups the populate fields based on the service settings.
+	 * - For each populate field in the service settings, it does the following:
+	 *   - Checks if the grouped populate fields include the populate field. If not, it continues to the next populate field.
+	 *   - Gets the rule for the populate field from the service settings.
+	 *   - If the rule is a function, it converts it to an object with a handler property.
+	 *   - If the rule is a string, it converts it to an object with an action property.
+	 *   - Adds the populate field to the rule object.
+	 *   - Gets the IDs from the documents based on the rule field.
+	 *   - If the rule includes a handler, it calls the handler with the IDs, the documents, the rule, and the context,
+	 *     and adds the promise to the promises array.
+	 *   - If the rule does not include a handler and the IDs array is not empty, it does the following:
+	 *     - Constructs the parameters for the action call.
+	 *     - Calls the action with the parameters, transforms the result, and adds the promise to the promises array.
+	 * - Waits for all promises to resolve, then returns the documents.
+	 * - If any error occurs, it logs an error message and throws the error.
+	 *
+	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Array|Object} docs - The documents to populate.
+	 * @param {any[]} [populateFields] - The fields to populate in the documents.
+	 * @returns {Promise<any>} A promise that resolves with the populated documents.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, the error is thrown.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	populateDocs(ctx: Context, docs: any[] | object, populateFields?: string[]): Promise<any>;
+	/**
+	 * Validates an entity or an array of entities.
+	 * Uses the `entityValidator` setting. If no validator function is supplied, returns record.
+	 *
+	 * This method does the following:
+	 * - Checks if the entityValidator in the service settings is a function. If not, it returns the entity as is.
+	 * - If the entity is not an array, it converts it to an array.
+	 * - Calls the entityValidator for each entity in the array, and waits for all promises to resolve.
+	 * - Returns the entity.
+	 *
+	 * @methods
+	 * @param {Object | Object[]} entity - The entity or an array of entities to validate.
+	 * @returns {Promise<Object | Object[]>} A promise that resolves with the validated entity or array of entities.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	validateEntity(entity: object | object[]): Promise<object | object[]>;
+	/**
+	 * Authorizes the fields based on the service settings.
+	 *
+	 * This method does the following:
+	 * - Checks if the service settings include fields and if the fields array is not empty. If not, it returns the askedFields as is.
+	 * - Checks if the askedFields parameter is an array and if it is not empty. If not, it returns the askedFields as is.
+	 * - Filters the askedFields array to include only the fields that are allowed by the service settings. It does this by doing the following:
+	 *   - Checks if the askedField is included in the service settings fields. If it is, it includes the askedField in the allowedFields.
+	 *   - If the askedField includes a '.', it splits the askedField into parts and checks if any of the parts are included
+	 *     in the service settings fields. If they are, it includes the askedField in the allowedFields.
+	 *   - Checks if any of the service settings fields start with the askedField followed by a '.'.
+	 *     If they do, it includes the askedField in the allowedFields.
+	 * - Returns the allowedFields.
+	 *
+	 * @methods
+	 * @param {String[]} askedFields - The fields to authorize.
+	 * @returns {String[]} The authorized fields.
+	 * @memberof MikroORMDbAdapter
+	 */
+	authorizeFields(askedFields: string[]): string[];
+	/**
+	 * Sanitizes and converts parameters based on their expected types.
+	 *
+	 * This method does the following:
+	 * - Copies the parameters object.
+	 * - Defines helper functions to convert parameters to numbers, arrays, and JSON objects.
+	 * - Converts the 'limit', 'offset', 'page', and 'pageSize' parameters to numbers.
+	 * - Converts the 'sort', 'fields', 'excludeFields', 'populate', and 'searchFields' parameters to arrays.
+	 * - Converts the 'query', 'where', and 'options' parameters to JSON objects.
+	 * - If the action is a list action, it does the following:
+	 *   - Sets default values for the 'pageSize' and 'page' parameters.
+	 *   - If the 'pageSize' parameter is greater than the maximum page size, it sets the 'pageSize' parameter to the maximum page size.
+	 *   - Sets the 'limit' parameter to the 'pageSize' parameter.
+	 *   - Calculates the 'offset' parameter based on the 'page' and 'pageSize' parameters.
+	 * - If the 'limit' parameter is greater than the maximum limit, it sets the 'limit' parameter to the maximum limit.
+	 * - Returns the sanitized parameters.
+	 *
+	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Object} params - The parameters to sanitize.
+	 * @returns {object} The sanitized parameters.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	sanitizeParams(ctx: Context, params: object): object;
 	// #endregion Moleculer-db methods
 }
 
@@ -1473,7 +1899,23 @@ export default class MikroORMDbAdapter<
 	 * @properties
 	 */
 	public repository: EntityRepository<MKRMEntity> | undefined;
+	/**
+	 * Represents the MikroORM connection.
+	 *
+	 * The MikroORM connection is used to interact with the database. It can be undefined if the MikroORM adapter is not connected to a database.
+	 *
+	 * @type {MikroORMConnection | undefined}
+	 */
 	public orm: MikroORM<D>;
+	/**
+	 * Represents the logger instance used by the service.
+	 *
+	 * The logger instance is used to log information, warnings, errors, etc. during the execution of the service. It can be undefined if the
+	 * service does not have a logger instance.
+	 *
+	 * @type {moleculer.LoggerInstance | undefined}
+	 */
+	public logger: moleculer.LoggerInstance | undefined;
 	private _entity;
 	// eslint-disable-next-line @typescript-eslint/naming-convention
 	private MikroORM;
@@ -1488,7 +1930,7 @@ export default class MikroORMDbAdapter<
 	/**
 	 * @deprecated this method will be removed in v6, use the public `getEntityManager()` method instead
 	 */
-	public get em(): EntityManager;
+	// public get em(): EntityManager;
 	/**
 	 * Shortcut for `orm.getSchemaGenerator()`
 	 */
@@ -1518,26 +1960,64 @@ export default class MikroORMDbAdapter<
 	 */
 	public init(broker: ServiceBroker, service: Service): void;
 	/**
-	 * Connects to database.
-	 * It will be called in `broker.start()` and is used internally.
+	 * Asynchronously connects to the database and initializes the adapter.
+	 *
+	 * This method does the following:
+	 * - Creates a new connection manager and assigns it to the `connectionManager` property.
+	 * - Creates a new ORM and entity manager using the connection manager.
+	 * - Logs the name of the service and the database it has connected to.
+	 * - Converts the `_entity` property to an array if it's not already an array.
+	 * - Defines a function `entityMethods` that returns an array of method names of an object.
+	 * - Logs the entities being added to the adapter.
+	 * - Defines a function `addMethods` that adds methods from a source object to a target object.
+	 * - For each entity in the `entityArray`, it does the following:
+	 *   - Gets the repository for the entity.
+	 *   - Gets the entity manager.
+	 *   - Gets the repository entity manager.
+	 *   - Gets the name of the entity.
+	 *   - Gets the method names of the entity.
+	 *   - Defines an object `methodsToAdd` with properties for the entity, options, ORM, manager, repository, and entity name.
+	 *   - Adds the entity methods to the `methodsToAdd` object or the adapter itself if it's the first entity.
+	 *   - Defines an array `entityManagerMethods` of method names to add from the entity manager.
+	 *   - Adds the entity manager methods to the `methodsToAdd` object or the adapter itself if it's the first entity.
+	 *   - Defines an array `repositoryMethods` of method names to add from the repository.
+	 *   - Adds the repository methods to the `methodsToAdd` object or the adapter itself if it's the first entity.
+	 *   - If it's not the first entity, it adds the `methodsToAdd` object to the adapter under the property with the name of the entity.
+	 * - Logs that it's adding a forked entity manager to the adapter.
+	 * - Assigns a forked entity manager to the `manager` and `em` properties.
+	 * - Logs that it's adding a forked repository to the adapter.
+	 * - Assigns a forked repository to the `repository` property.
+	 * - Logs that it's adding the ORM to the adapter.
+	 * - Assigns the ORM to the `orm` property.
+	 * - Logs that it's adding the entity name to the adapter.
+	 * - Assigns the entity name to the `entityName` property.
+	 * - Logs that it's adding the `getEntityManager` method to the adapter.
+	 * - Assigns the `_getEntityManager` method to the `getEntityManager` property.
 	 *
 	 * @methods
 	 * @public
-	 *
-	 * @returns {Promise}
+	 * @returns {Promise<void>} A promise that resolves when the connection and initialization is complete.
 	 *
 	 */
-	public connect(): Promise<any>;
+	public connect(): Promise<void>;
 	/**
-	 * Disconnects all connections from database and connection manager.
-	 * It will be called in `broker.stop()` and is used internally.
+	 * Asynchronously disconnects from all the databases.
+	 *
+	 * This method does the following:
+	 * - Iterates over all the connections in the connection manager.
+	 * - For each connection, it does the following:
+	 *   - Logs a message indicating that it's attempting to disconnect from the database.
+	 *   - Tries to close the connection.
+	 *   - If the disconnection is successful, it logs a message indicating that it has disconnected from the database.
+	 *   - If the disconnection fails, it logs an error message and throws a `MoleculerServerError` with the error message,
+	 *     a 500 status code, and the error details.
 	 *
 	 * @methods
 	 * @public
-	 *
-	 * @returns {Promise}
+	 * @returns {Promise<void>}
+	 * @memberof MikroORMDbAdapter
 	 */
-	public disconnect(): Promise<any>;
+	public disconnect(): Promise<void>;
 	// #endregion MikroORMDbAdapter properties
 	// #region MicroORM orm methods
 	/**
@@ -1595,21 +2075,21 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	public _persist(entity: AnyEntity | AnyEntity[]): EntityManager;
+	// public _persist(entity: AnyEntity | AnyEntity[]): EntityManager;
 	/**
 	 * Persists your entity immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.persist(e).flush()`.
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	public _persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
+	// public _persistAndFlush(entity: AnyEntity | AnyEntity[]): Promise<void>;
 	/**
 	 * Tells the EntityManager to make an instance managed and persistent.
 	 * The entity will be entered into the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `persist()`
 	 */
-	public _persistLater(entity: AnyEntity | AnyEntity[]): void;
+	// public _persistLater(entity: AnyEntity | AnyEntity[]): void;
 	/**
 	 * Finds first entity matching your `where` query.
 	 */
@@ -1710,21 +2190,21 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	public _remove(entity: AnyEntity): EntityManager;
+	// public _remove(entity: AnyEntity): EntityManager;
 	/**
 	 * Removes an entity instance immediately, flushing all not yet persisted changes to the database too.
 	 * Equivalent to `em.remove(e).flush()`
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	public _removeAndFlush(entity: AnyEntity): Promise<void>;
+	// public _removeAndFlush(entity: AnyEntity): Promise<void>;
 	/**
 	 * Marks entity for removal.
 	 * A removed entity will be removed from the database at or before transaction commit or as a result of the flush operation.
 	 *
 	 * @deprecated use `remove()`
 	 */
-	public _removeLater(entity: AnyEntity): void;
+	// public _removeLater(entity: AnyEntity): void;
 	/**
 	 * Flushes all changes to objects that have been queued up to now to the database.
 	 * This effectively synchronizes the in-memory state of managed objects with the database.
@@ -1733,7 +2213,7 @@ export default class MikroORMDbAdapter<
 	 *
 	 * @deprecated this method will be removed in v6, you should work with the EntityManager instead
 	 */
-	public _flush(): Promise<void>;
+	// public _flush(): Promise<void>;
 	/**
 	 * Fires native insert query. Calling this has no side effects on the context (identity map).
 	 */
@@ -1808,10 +2288,10 @@ export default class MikroORMDbAdapter<
 	 * the whole `data` parameter will be passed. This means we can also define `constructor(data: Partial<T>)` and
 	 * `em.create()` will pass the data into it (unless we have a property named `data` too).
 	 */
-	public _create<P = never>(
-		data: RequiredEntityData<MKRMEntity>,
+	public _create<P extends MKRMEntity>(
+		data: RequiredEntityData<P>,
 		options?: CreateOptions,
-	): MKRMEntity;
+	): Promise<P>;
 	/**
 	 * Shortcut for `wrap(entity).assign(data, { em })`
 	 */
@@ -1845,70 +2325,130 @@ export default class MikroORMDbAdapter<
 	// #region Moleculer-db methods
 	/** Moleculer-db methods */
 	/**
-	 * Convert DB entity to JSON object
+	 * Converts an entity to a JavaScript object.
+	 *
+	 * This method currently returns the entity as is. It can be overridden in subclasses to provide custom entity to object conversion.
 	 *
 	 * @methods
-	 * @public
-	 * @param {any} entity
-	 * @returns {Object}
+	 * @param {any} entity - The entity to convert.
+	 * @returns {object} The converted object.
+	 * @memberof MikroORMDbAdapter
 	 *
 	 */
 	public entityToObject(entity: any): object;
 	/**
-	 * Convert DB entity to JSON object
+	 * Transforms the ID field of an entity before saving it to the database.
 	 *
-	 * @param {any} entity
-	 * @returns {Object}
-	 * @memberof MemoryDbAdapter
-	 */
-	public entityToObject(entity: any): any;
-	/**
-	 * Transforms user defined idField into expected db id field.
+	 * This method does the following:
+	 * - Creates a deep copy of the entity.
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field and the entity has the provided ID field, it does the following:
+	 *   - Sets the value of the database ID field in the new entity to the value of the provided ID field.
+	 *   - Deletes the provided ID field from the new entity.
+	 * - Returns the new entity.
 	 *
 	 * @methods
-	 * @public
-	 * @param {Object} entity
-	 * @param {String} idField
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {Object} - Modified entity
 	 *
-	 * @returns {Object} Modified entity
+	 * @memberof MikroORMDbAdapter
 	 *
 	 */
 	public beforeSaveTransformID(entity: Record<string, any>, idField: string): object;
 	/**
-	 * Transforms 'idField' into NeDB's '_id'
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @memberof MemoryDbAdapter
-	 * @returns {Object} Modified entity
+	 * Transforms the ID field of an entity before saving it to the database.
+	 *
+	 * This method does the following:
+	 * - Creates a deep copy of the entity.
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field and the entity has the provided ID field, it does the following:
+	 *   - Sets the value of the database ID field in the new entity to the value of the provided ID field.
+	 *   - Deletes the provided ID field from the new entity.
+	 * - Returns the new entity.
+	 *
+	 * @methods
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {Object} - Modified entity
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	public beforeSaveTransformID(entity: any, idField: string): any;
 	/**
-	 * Transforms db field into user defined idField service property
+	 * Transforms the ID field of an entity after retrieving it from the database.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - Creates a deep copy of the entity.
+	 * - If the entity does not have the provided ID field but has the database ID field, it does the following:
+	 *   - Sets the value of the provided ID field in the new entity to the value of the database ID field.
+	 *   - Deletes the database ID field from the new entity.
+	 * - Returns the new entity.
 	 *
 	 * @methods
-	 * @public
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @returns {Object} Modified entity
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {object} The transformed entity.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 *
 	 */
-	public AfterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
+	public afterRetrieveTransformID(entity: Record<string, any>, idField: string): object;
+	/**
+	 * ransforms the ID field of an entity after retrieving it from the database.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - Creates a deep copy of the entity.
+	 * - If the entity does not have the provided ID field but has the database ID field, it does the following:
+	 *   - Sets the value of the provided ID field in the new entity to the value of the database ID field.
+	 *   - Deletes the database ID field from the new entity.
+	 * - Returns the new entity.
+	 *
+	 * @methods
+	 * @param {any} entity - The entity to transform.
+	 * @param {string} idField - The ID field to transform.
+	 * @returns {object} The transformed entity.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	public afterRetrieveTransformID(entity: any, idField: string): any;
 	/** Additional custom methods */
 	/**
-	 * Transform user defined idField service property into the expected id field of db.
+	 * Transforms the ID field of a query before executing it.
+	 *
+	 * This method does the following:
+	 * - Determines the database ID field based on the type of the database and the metadata of the entity.
+	 * - If the ID field provided is not the same as the database ID field, returns the database ID field; otherwise, returns the provided ID field.
+	 *
 	 * @methods
-	 * @param {any} idField
-	 * @returns {any}
+	 * @param {any} idField - The ID field to transform.
+	 * @returns {any} The transformed ID field.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public beforeQueryTransformID(idField: any): any;
 	/**
-	 * Count number of matching documents in the db to a query.
+	 * Asynchronously counts the number of entities in the database that match the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_count` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities that match the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_COUNT', and the error details.
 	 *
 	 * @methods
-	 * @param {FilterQuery<T>} where - count options
-	 * @param {CountOptions<T, P>} options - query options
-	 * @returns {Promise<number>}
+	 * @param {FilterQuery<T>} [where] - The filter query to match the entities against.
+	 * @param {CountOptions<T, P>} [options] - Optional settings for the count operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities that match the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_COUNT', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public count<T extends MKRMEntity, P extends string>(
@@ -1916,13 +2456,34 @@ export default class MikroORMDbAdapter<
 		options?: CountOptions<T, P>,
 	): Promise<number>;
 	/**
-	 * Create new record or records.
-	 * If record exists it is skipped, otherwise it is created.
+	 * Asynchronously creates one or more entities in the database.
+	 *
+	 * This method does the following:
+	 * - Logs a message indicating that it's attempting to create the entity or entities.
+	 * - Defines a function `handleError` that logs an error message and returns a `MoleculerServerError` with the error message,
+	 *   a 500 status code, and the error details.
+	 * - Defines a function `persistEntity` that attempts to persist the entity in the database and flush the changes.
+	 *   If the operation fails, it calls `handleError` with the error.
+	 * - Tries to do the following:
+	 *   - If the `entityOrEntities` parameter is an array, it does the following:
+	 *     - Calls the `_create` method for each entity in the array and waits for all the promises to resolve.
+	 *     - Logs a message indicating that the entities have been created.
+	 *     - Logs a message indicating that it's attempting to persist the created entities and flush the changes.
+	 *     - Returns a promise that resolves when all the entities have been persisted and the changes have been flushed.
+	 *   - If the `entityOrEntities` parameter is not an array, it does the following:
+	 *     - Calls the `_create` method for the entity and waits for the promise to resolve.
+	 *     - Logs a message indicating that it's attempting to persist the created entity and flush the changes.
+	 *     - Returns a promise that resolves when the entity has been persisted and the changes have been flushed.
+	 * - If any error occurs, it throws the error returned by `handleError`.
 	 *
 	 * @methods
-	 * @param {Object | Object[]} entityOrEntities - record(s) to create
-	 * @param {Object?} options - Optional create options
-	 * @returns {Promise<Object | Object[]>>}
+	 * @param {RequiredEntityData<T> | RequiredEntityData<T>[]} entityOrEntities - The data for the entity or entities to create.
+	 * @param {CreateOptions} [options] - Optional settings for the creation operation.
+	 *
+	 * @returns {Promise<T | T[]>} A promise that resolves with the created entity or entities.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, and the error details.
 	 * @memberof MikroORMDbAdapter
 	 */
 	public create<T extends MKRMEntity>(
@@ -1930,27 +2491,48 @@ export default class MikroORMDbAdapter<
 		options?: CreateOptions,
 	): Promise<T | T[]>;
 	/**
-	 * Create one or many new entities.
+	 * Asynchronously inserts one or more entities into the database.
+	 *
+	 * This method is a wrapper around the `create` method. It takes the same parameters and returns the same type of promise.
 	 *
 	 * @methods
+	 * @param {RequiredEntityData<T> | RequiredEntityData<T>[]} entityOrEntities - The data for the entity or entities to insert.
+	 * @param {CreateOptions} [options] - Optional settings for the insertion operation.
 	 *
-	 * @param {Object?} entityOrEntities - entity or entities to create.
-	 * @param {Object?} options - Insert options.
+	 * @returns {Promise<T | T[]>} A promise that resolves with the inserted entity or entities.
 	 *
-	 * @returns {Object|Object[]} Saved entity(ies).
+	 * @memberof MikroORMDbAdapter
 	 */
 	public insert<T extends MKRMEntity>(
 		entityOrEntities: RequiredEntityData<T> | RequiredEntityData<T>[],
 		options?: CreateOptions,
 	): Promise<T | T[]>;
 	/**
-	 * Update an entity by ID
+	 * Asynchronously updates an entity in the database by its ID.
+	 *
+	 * This method does the following:
+	 * - Logs a message indicating that it's attempting to update the entity with the provided ID.
+	 * - Transforms the ID using the `beforeQueryTransformID` method.
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeUpdate` method with the transformed ID, the update data, and the options, and waits for the promise to resolve.
+	 *   - Logs a message indicating that the entity has been updated.
+	 *   - Calls the `findById` method with the original ID, and waits for the promise to resolve.
+	 *   - Logs a message indicating that it's transforming the updated entity.
+	 *   - Returns the updated entity transformed by the `afterRetrieveTransformID` method.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_UPDATE_BY_ID', and the error details.
+	 *
 	 * @methods
-	 * @param {Context} ctx - request context
-	 * @param {any} id - ID of record to be updated
-	 * @param {Object} update - Object with update data
-	 * @param {Object} options - Object with update options
-	 * @returns {Promise} - Updated record
+	 * @param {any} id - The ID of the entity to update.
+	 * @param {EntityData<T>} update - The data to update the entity with.
+	 * @param {UpdateOptions<T>} [options] - Optional settings for the update operation.
+	 *
+	 * @returns {Promise<T>} A promise that resolves with the updated entity.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_UPDATE_BY_ID', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public updateById<T extends MKRMEntity>(
@@ -1959,30 +2541,73 @@ export default class MikroORMDbAdapter<
 		options?: UpdateOptions<T>,
 	): Promise<any>;
 	/**
-	 * Remove an entity by ID
+	 * Asynchronously removes an entity from the database by its ID.
 	 *
-	 * @param {any} id
-	 * @param {DeleteOptions<T>} options
-	 * @returns {Promise<number>}
+	 * This method does the following:
+	 * - Transforms the ID using the `beforeQueryTransformID` method.
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeDelete` method with an object that has a property with the name of the transformed ID and the value of the original ID,
+	 *     and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities removed.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_REMOVE_BY_ID', and the error details.
+	 *
+	 * @methods
+	 * @param {any} id - The ID of the entity to remove.
+	 * @param {DeleteOptions<T>} [options] - Optional settings for the remove operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities removed.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_REMOVE_BY_ID', and the error details.
+	 *
 	 * @memberof MemoryDbAdapter
 	 */
 	public removeById<T extends MKRMEntity>(id: any, options?: DeleteOptions<T>): Promise<number>;
 	/**
-	 * Remove many entities by ID
+	 * Asynchronously removes multiple entities from the database by their IDs.
 	 *
-	 * @param {any[]} id
-	 * @param {DeleteOptions<T>} options
-	 * @returns {Promise<number>}
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_nativeDelete` method with the array of IDs and the options, and waits for the promise to resolve.
+	 *   - Returns the number of entities removed.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_REMOVE_MANY_BY_ID', and the error details.
+	 *
+	 * @methods
+	 * @param {any[]} id - The IDs of the entities to remove.
+	 * @param {DeleteOptions<T>} [options] - Optional settings for the remove operation.
+	 *
+	 * @returns {Promise<number>} A promise that resolves with the number of entities removed.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_REMOVE_MANY_BY_ID', and the error details.
+	 *
 	 * @memberof MemoryDbAdapter
 	 */
 	public removeMany<T extends MKRMEntity>(id: any[], options?: DeleteOptions<T>): Promise<number>;
 	/**
-	 * Finds entities that match given find options.
+	 * Asynchronously finds entities in the database that match the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_find` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the entities that match the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND', and the error details.
 	 *
 	 * @methods
-	 * @param {FilterQuery<T>} where - request context
-	 * @param {FindOptions<T, P>} options - find many options
-	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>}
+	 * @param {FilterQuery<T>} where - The filter query to match the entities against.
+	 * @param {FindOptions<T, P>?} [options] - Optional settings for the find operation.
+	 *
+	 * @returns {Promise<Loaded<T, P> | Loaded<T, P>[]>} A promise that resolves with the entities that match the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, the error code 'FAILED_TO_FIND', and the error details.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public find<T extends MKRMEntity, P extends string>(
@@ -1990,8 +2615,16 @@ export default class MikroORMDbAdapter<
 		options?: FindOptions<T, P>,
 	): Promise<Loaded<T, P> | Loaded<T, P>[]>;
 	/**
-	 * Finds first item by a given find options.
-	 * If entity was not found in the database - returns null.
+	 * Asynchronously finds a single entity in the database that matches the provided filter query.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_findOne` method with the filter query and the options, and waits for the promise to resolve.
+	 *   - Returns the entity that matches the filter query, or null if no entity matches the filter query.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND_ONE', and the error details.
+	 *
 	 * Available Options props:
 	 * - comment
 	 * - select
@@ -2008,10 +2641,14 @@ export default class MikroORMDbAdapter<
 	 * - transaction
 	 *
 	 * @methods
-	 * @param {FilterQuery<T>} where - request context
-	 * @param {FindOneOptions<T, P>} options - find options
-	 * @returns {Promise<null | Loaded<T, P>>}
-	 * @memberof MikroORMDbAdapter
+	 * @param {FilterQuery<T>} where - The filter query to match the entity against.
+	 * @param {FindOneOptions<T, P>} [options] - Optional settings for the find operation.
+	 *
+	 * @returns {Promise<null | Loaded<T, P>>} A promise that resolves with the entity that matches the filter query,
+	 * or null if no entity matches the filter query.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_FIND_ONE', and the error details.
 	 */
 	public findOne<T extends MKRMEntity, P extends string>(
 		where: FilterQuery<T>,
@@ -2019,29 +2656,60 @@ export default class MikroORMDbAdapter<
 	): Promise<null | Loaded<T, P>>;
 
 	/**
-	 * Gets item by id. No find options
+	 * Asynchronously finds an entity in the database by its ID. No find options can be provided.
+	 *
+	 * This method does the following:
+	 * - Tries to do the following:
+	 *   - Calls the `_find` method with the ID, and waits for the promise to resolve.
+	 *   - Returns the first entity that matches the ID, or undefined if no entity matches the ID.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_FIND_BY_ID', and the error details.
 	 *
 	 * @methods
-	 * @param {string | number | string[] | number[]} id - id(s) of entity
-	 * @returns {Promise<T | undefined>}
+	 * @param {string | number | string[] | number[]} id - The ID of the entity to find.
 	 *
+	 * @returns {Promise<T | undefined>} A promise that resolves with the entity that matches the ID, or undefined if no entity matches the ID.
+	 *
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_FIND_BY_ID', and the error details.
+	 * Gets item by id(s).
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	public findById<T extends MKRMEntity>(
 		id: string | number | string[] | number[],
 	): Promise<T | undefined>;
 	/**
-	 * Populates entity(ies) by id(s) of another record.
+	 * Asynchronously retrieves population data based on the provided parameters.
+	 *
+	 * This method does the following:
+	 * - Extracts the ID from the parameters.
+	 * - Determines whether mapping should be performed based on the parameters.
+	 * - Tries to do the following:
+	 *   - Calls the `findById` method with the ID, and waits for the promise to resolve.
+	 *   - If no document is found, throws a `MoleculerServerError`.
+	 *   - If mapping should be performed, clones the document; otherwise, uses the original document.
+	 *   - Transforms the document into JSON.
+	 *   - If mapping should not be performed, returns the JSON.
+	 *   - If mapping should be performed, creates a new object and maps the JSON to it, using the transformed ID as the key.
+	 *   - Returns the mapped object.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws the error.
 	 *
 	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {any} [params] - The parameters of the request.
 	 *
-	 * @param {Context} ctx - Context instance.
-	 * @param {Object?} params - Parameters.
+	 * @returns {Promise<object | object[]>} A promise that resolves with the population data.
 	 *
-	 * @returns {Object|Array<Object>} Found entity(ies).
+	 * @throws {Errors.MoleculerServerError} If no document is found, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, and the error code 'FAILED_TO_FIND_BY_ID'.
 	 *
-	 * @throws {EntityNotFoundError} - 404 MKRMEntity not found
+	 * @memberof MikroORMDbAdapter
 	 */
-	public getPopulations(ctx: Context, params?: any): object | object[];
+	public getPopulations(ctx: Context, params?: any): Promise<object | object[]>;
 	/**
 	 * Gets items by id.
 	 *
@@ -2053,164 +2721,337 @@ export default class MikroORMDbAdapter<
 	 * @deprecated - use findById instead. It now supports multiple ids
 	 *
 	 */
-	public findByIds<T extends MKRMEntity>(
-		ctx: Context,
-		key: string | undefined | null,
-		ids: any[],
-	): Promise<T | undefined>;
+	// public findByIds<T extends MKRMEntity>(
+	// 	ctx: Context,
+	// 	key: string | undefined | null,
+	// 	ids: any[],
+	// ): Promise<T | undefined>;
 
 	/**
-	 * List entities by filters and pagination results.
+	 * Asynchronously lists entities in the database based on the provided parameters.
+	 *
+	 * This method does the following:
+	 * - Creates a copy of the parameters for counting entities.
+	 * - Removes pagination parameters from the count parameters.
+	 * - If no limit is provided, sets the limit based on the service settings and the page size.
+	 * - Logs a debug message with the listing parameters.
+	 * - Tries to do the following:
+	 *   - Calls the `_findAndCount` method with the parameters, and waits for the promise to resolve.
+	 *   - Transforms the found documents into JSON.
+	 *   - Returns an object with the following properties:
+	 *     - `rows`: The transformed documents.
+	 *     - `total`: The total number of entities.
+	 *     - `page`: The current page.
+	 *     - `pageSize`: The page size.
+	 *     - `totalPages`: The total number of pages.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_LIST', and the error details.
 	 *
 	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {ListParams<Object>?} params - The parameters of the request.
 	 *
-	 * @param {Context} ctx - Context instance.
-	 * @param {Object?} params - Parameters.
+	 * @returns {Promise<object>} A promise that resolves with an object containing the listed entities and pagination information.
 	 *
-	 * @returns {Object} List of found entities and count.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message,
+	 * a 500 status code, the error code 'FAILED_TO_LIST', and the error details.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	public list(ctx: any, params: ListParams): Promise<any>;
+	public list(ctx: any, params: ListParams): Promise<object>;
 
 	/**
-	 * Transforms NeDB's '_id' into user defined 'idField'
-	 * @param {Object} entity
-	 * @param {String} idField
-	 * @memberof MemoryDbAdapter
-	 * @returns {Object} Modified entity
-	 */
-	// AfterRetrieveTransformID(entity: any, idField: string): any;
-
-	/**
-	 * Encode ID of entity.
+	 * Encodes the ID of an entity.
+	 *
+	 * This method currently returns the ID as is. It can be overridden in subclasses to provide custom ID encoding.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to encode.
+	 * @returns {any} The encoded ID.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	public encodeID(id: any): any;
 
 	/**
-	 * Decode ID of entity.
+	 * Decodes the provided ID.
+	 *
+	 * This method currently returns the provided ID as it is. It can be overridden in subclasses to provide custom decoding logic.
 	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to decode.
+	 *
+	 * @returns {any} The decoded ID.
 	 */
 	public decodeID(id: any): any;
 
 	/**
-	 * Convert id to mongodb ObjectId.
+	 * Converts a given ID to a MongoDB ObjectId.
+	 *
+	 * This method is used when working with MongoDB, where the IDs are usually of the ObjectId type.
+	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The ID to convert.
+	 * @returns {ObjectId} The converted ObjectId.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
-	// ToMongoObjectId(id: any): ObjectId;
+	public toMongoObjectId(id: any): ObjectId;
 
 	/**
-	 * Convert mongodb ObjectId to string.
+	 * Converts a given MongoDB ObjectId to a string.
+	 *
+	 * This method is used when working with MongoDB, where the IDs are usually of the ObjectId type.
+	 * It converts the ObjectId back to a string for use in the application.
+	 *
 	 * @methods
-	 * @param {any} id
-	 * @returns {any}
+	 * @param {any} id - The MongoDB ObjectId to convert.
+	 * @returns {string} The converted string ID.
+	 *
 	 * @memberof MikroORMDbAdapter
 	 */
 	public fromMongoObjectId(id: any): string;
 
 	/**
-	 * Transform the fetched documents
+	 * Transforms documents after retrieving them from the database.
+	 *
+	 * This method does the following:
+	 * - Logs a debug message.
+	 * - Determines the user-defined ID field from the service settings.
+	 * - Checks if the documents are an array or an object.
+	 * - If the documents are an object, converts them to an array.
+	 * - Tries to do the following:
+	 *   - Converts the documents to JavaScript objects.
+	 *   - Applies the user-defined ID field to the documents.
+	 *   - Encodes the IDs of the documents.
+	 *   - If the context and the populate parameter are provided, populates the documents.
+	 *   - If the context and the fields parameter are provided, filters the fields of the documents.
+	 *   - If the excludeFields parameter is provided, excludes the specified fields from the documents.
+	 *   - Returns the transformed documents and populates the document with the relations specified in the populate service property.
+	 * - If any error occurs, it does the following:
+	 *   - Logs an error message.
+	 *   - Throws a `MoleculerServerError` with the error message, a 500 status code, the error code 'FAILED_TO_TRANSFORM_DOCUMENTS', and the error details.
+	 *
 	 * @methods
-	 * @param {Context} ctx
-	 * @param {Object} 	params
-	 * @param {Array|Object} docs
-	 * @returns {Array|Object}
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Object} params - The parameters of the request.
+	 * @param {Array|Object} docs - The documents to transform.
+	 * @returns {Promise<any[] | object>} A promise that resolves with the transformed documents.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, a `MoleculerServerError` is thrown with the error message, a 500 status code,
+	 * the error code 'FAILED_TO_TRANSFORM_DOCUMENTS', and the error details.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	public transformDocuments(ctx: any, params: any, docs: any): any;
+	public transformDocuments(ctx: Context, params: any, docs: any): Promise<any[] | object>;
 
 	/**
-	 * Call before entity lifecycle events
+	 * Executes a hook (before entity lifecycle event) before an entity change operation.
+	 *
+	 * This method does the following:
+	 * - Constructs the event name based on the type of the operation.
+	 * - If there is no hook for the event in the service schema, returns the entity as is.
+	 * - If there is a hook for the event in the service schema, calls the hook with the entity and the context, and waits for the promise to resolve.
+	 * - Returns the result of the hook, or the entity if there is no hook.
 	 *
 	 * @methods
-	 * @param {String} type
-	 * @param {Object} entity
-	 * @param {Context} ctx
-	 * @returns {Promise}
+	 * @param {string | undefined} type - The type of the operation. This should be 'Create', 'Update', or 'Remove'.
+	 * @param {Object} entity - The entity to be changed.
+	 * @param {Context} ctx - The context of the operation.
+	 * @returns {Promise<any>} A promise that resolves with the result of the hook, or the entity if there is no hook.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	public beforeEntityChange(type: string | undefined, entity: any, ctx: any): Promise<any>;
+	public beforeEntityChange(type: string | undefined, entity: object, ctx: Context): Promise<any>;
 
 	/**
-	 * Clear the cache & call entity lifecycle events
+	 * Executes a hook after an entity change operation and clears the cache.
+	 *
+	 * This method does the following:
+	 * - Clears the cache.
+	 * - Constructs the event name based on the type of the operation.
+	 * - If there is no hook for the event in the service schema, returns undefined.
+	 * - If there is a hook for the event in the service schema, calls the hook with the entity and the context, and waits for the promise to resolve.
+	 * - Returns the result of the hook.
 	 *
 	 * @methods
-	 * @param {String} type
-	 * @param {Object|Array<Object>|Number} json
-	 * @param {Context} ctx
-	 * @returns {Promise}
+	 * @param {string | undefined} type - The type of the operation. This should be 'Create', 'Update', or 'Remove'.
+	 * @param {Object|Array<Object>|Number} json - The entity that was changed.
+	 * @param {Context} ctx - The context of the operation.
+	 * @returns {Promise<any>} A promise that resolves with the result of the hook, or undefined if there is no hook.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
-	public entityChanged(type: string | undefined, json: any, ctx: any): Promise<any>;
+	public entityChanged(
+		type: string | undefined,
+		json: object | object[] | number,
+		ctx: Context,
+	): Promise<any>;
 	/**
-	 * Clear cached entities
+	 * Clears the cache for this service.
+	 *
+	 * This method does the following:
+	 * - Emits a cache clean event for this service.
+	 * - If a cacher is available, cleans the cache for this service.
 	 *
 	 * @methods
-	 * @returns {Promise}
+	 * @returns {Promise<any>} A promise that resolves when the cache is cleaned. If no cacher is available, the promise resolves immediately.
+	 *
+	 * @memberof MikroORMDbAdapter
 	 */
 	public clearCache(): Promise<any>;
 	/**
-	 * Filter fields in the entity object
+	 * Filters the fields of a document.
 	 *
-	 * @param {Object} 	doc
-	 * @param {Array<String>} 	fields	Filter properties of model.
-	 * @returns	{Object}
-	 */
-	public filterFields(doc: any, fields: any[]): any;
-	/**
-	 * Exclude fields in the entity object
-	 *
-	 * @param {Object} 	doc
-	 * @param {Array<String>} 	fields	Exclude properties of model.
-	 * @returns	{Object}
-	 */
-	public excludeFields(doc: any, fields: string | any[]): any;
-
-	/**
-	 * Exclude fields in the entity object. Internal use only, must ensure `fields` is an Array
-	 */
-	public _excludeFields(doc: any, fields: any[]): any;
-
-	/**
-	 * Populate documents.
-	 *
-	 * @param {Context} 		ctx
-	 * @param {Array|Object} 	docs
-	 * @param {Array?}			populateFields
-	 * @returns	{Promise}
-	 */
-	public populateDocs(ctx: any, docs: any, populateFields?: any[]): Promise<any>;
-	/**
-	 * Validate an entity by validator.
-	 * @methods
-	 * @param {Object} entity
-	 * @returns {Promise}
-	 */
-	public validateEntity(entity: any): Promise<any>;
-	/**
-	 * Authorize the required field list. Remove fields which is not exist in the `this.settings.fields`
-	 *
-	 * @param {Array} askedFields
-	 * @returns {Array}
-	 */
-	public authorizeFields(askedFields: any[]): any[];
-	/**
-	 * Sanitize context parameters at `find` action.
+	 * This method does the following:
+	 * - If the fields parameter is an array, it does the following:
+	 *   - Reduces the fields array to a new object that only includes the specified fields from the document.
+	 *   - If a field is not found in the document, it is not included in the new object.
+	 *   - Returns the new object.
+	 * - If the fields parameter is not an array, it returns the document as is.
 	 *
 	 * @methods
+	 * @param {Object} doc - The document to filter.
+	 * @param {string[]} fields - The fields to include in the filtered document.
+	 * @returns {object} The filtered document.
 	 *
-	 * @param {Context} ctx - Request context
-	 * @param {Object} params - Request parameters
-	 * @returns {Object} - Sanitized parameters
 	 * @memberof MikroORMDbAdapter
 	 */
-	public sanitizeParams(ctx: any, params: any): any;
+	public filterFields(doc: object, fields: any[]): any;
+	/**
+	 * Excludes specified fields from a document.
+	 *
+	 * This method does the following:
+	 * - If the fields parameter is a string, it converts it to an array.
+	 * - If the fields array is not empty, it calls the `_excludeFields` method with the document and the fields array, and returns the result.
+	 * - If the fields array is empty, it returns the document as is.
+	 *
+	 * @methods
+	 * @param {any} doc - The document to exclude fields from.
+	 * @param {string | string[]} fields - The fields to exclude from the document. This can be a string or an array of strings.
+	 * @returns {object} The document with the specified fields excluded.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	public excludeFields(doc: object, fields: string | string[]): object;
+
+	/**
+	 * Excludes specified fields from a document. Internal use only, must ensure `fields` is an Array
+	 *
+	 * This method does the following:
+	 * - Clones the document.
+	 * - For each field in the fields array, it removes the field from the cloned document.
+	 * - Returns the cloned document.
+	 *
+	 * @methods
+	 * @param {Object} doc - The document to exclude fields from.
+	 * @param {String[]} fields - The fields to exclude from the document.
+	 * @returns {object} The document with the specified fields excluded.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	public _excludeFields(doc: object, fields: string[]): object;
+
+	/**
+	 * Populates documents with additional data based on the provided fields.
+	 *
+	 * This method does the following:
+	 * - Logs a debug message.
+	 * - Checks if the service settings include populates, if the populateFields parameter is an array,
+	 *   and if it is not empty. If any of these conditions are not met, it returns the documents as is.
+	 * - Checks if the documents are null, not an object, or not an array. If any of these conditions are met,
+	 *   it returns the documents as is.
+	 * - Groups the populate fields based on the service settings.
+	 * - For each populate field in the service settings, it does the following:
+	 *   - Checks if the grouped populate fields include the populate field. If not, it continues to the next populate field.
+	 *   - Gets the rule for the populate field from the service settings.
+	 *   - If the rule is a function, it converts it to an object with a handler property.
+	 *   - If the rule is a string, it converts it to an object with an action property.
+	 *   - Adds the populate field to the rule object.
+	 *   - Gets the IDs from the documents based on the rule field.
+	 *   - If the rule includes a handler, it calls the handler with the IDs, the documents, the rule, and the context,
+	 *     and adds the promise to the promises array.
+	 *   - If the rule does not include a handler and the IDs array is not empty, it does the following:
+	 *     - Constructs the parameters for the action call.
+	 *     - Calls the action with the parameters, transforms the result, and adds the promise to the promises array.
+	 * - Waits for all promises to resolve, then returns the documents.
+	 * - If any error occurs, it logs an error message and throws the error.
+	 *
+	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Array|Object} docs - The documents to populate.
+	 * @param {any[]} [populateFields] - The fields to populate in the documents.
+	 * @returns {Promise<any>} A promise that resolves with the populated documents.
+	 * @throws {Errors.MoleculerServerError} If any error occurs, the error is thrown.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	public populateDocs(
+		ctx: Context,
+		docs: any[] | object,
+		populateFields?: string[],
+	): Promise<any>;
+	/**
+	 * Validates an entity or an array of entities.
+	 * Uses the `entityValidator` setting. If no validator function is supplied, returns record.
+	 *
+	 * This method does the following:
+	 * - Checks if the entityValidator in the service settings is a function. If not, it returns the entity as is.
+	 * - If the entity is not an array, it converts it to an array.
+	 * - Calls the entityValidator for each entity in the array, and waits for all promises to resolve.
+	 * - Returns the entity.
+	 *
+	 * @methods
+	 * @param {Object | Object[]} entity - The entity or an array of entities to validate.
+	 * @returns {Promise<Object | Object[]>} A promise that resolves with the validated entity or array of entities.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	public validateEntity(entity: object | object[]): Promise<object | object[]>;
+	/**
+	 * Authorizes the fields based on the service settings.
+	 *
+	 * This method does the following:
+	 * - Checks if the service settings include fields and if the fields array is not empty. If not, it returns the askedFields as is.
+	 * - Checks if the askedFields parameter is an array and if it is not empty. If not, it returns the askedFields as is.
+	 * - Filters the askedFields array to include only the fields that are allowed by the service settings. It does this by doing the following:
+	 *   - Checks if the askedField is included in the service settings fields. If it is, it includes the askedField in the allowedFields.
+	 *   - If the askedField includes a '.', it splits the askedField into parts and checks if any of the parts are included
+	 *     in the service settings fields. If they are, it includes the askedField in the allowedFields.
+	 *   - Checks if any of the service settings fields start with the askedField followed by a '.'.
+	 *     If they do, it includes the askedField in the allowedFields.
+	 * - Returns the allowedFields.
+	 *
+	 * @methods
+	 * @param {String[]} askedFields - The fields to authorize.
+	 * @returns {String[]} The authorized fields.
+	 * @memberof MikroORMDbAdapter
+	 */
+	public authorizeFields(askedFields: string[]): string[];
+	/**
+	 * Sanitizes and converts parameters based on their expected types.
+	 *
+	 * This method does the following:
+	 * - Copies the parameters object.
+	 * - Defines helper functions to convert parameters to numbers, arrays, and JSON objects.
+	 * - Converts the 'limit', 'offset', 'page', and 'pageSize' parameters to numbers.
+	 * - Converts the 'sort', 'fields', 'excludeFields', 'populate', and 'searchFields' parameters to arrays.
+	 * - Converts the 'query', 'where', and 'options' parameters to JSON objects.
+	 * - If the action is a list action, it does the following:
+	 *   - Sets default values for the 'pageSize' and 'page' parameters.
+	 *   - If the 'pageSize' parameter is greater than the maximum page size, it sets the 'pageSize' parameter to the maximum page size.
+	 *   - Sets the 'limit' parameter to the 'pageSize' parameter.
+	 *   - Calculates the 'offset' parameter based on the 'page' and 'pageSize' parameters.
+	 * - If the 'limit' parameter is greater than the maximum limit, it sets the 'limit' parameter to the maximum limit.
+	 * - Returns the sanitized parameters.
+	 *
+	 * @methods
+	 * @param {Context} ctx - The context of the request.
+	 * @param {Object} params - The parameters to sanitize.
+	 * @returns {object} The sanitized parameters.
+	 *
+	 * @memberof MikroORMDbAdapter
+	 */
+	public sanitizeParams(ctx: Context, params: object): object;
 	// #endregion Moleculer-db methods
 }
-
-export function MikroORMServiceSchemaMixin(mixinOptions?: any): ServiceSchema;

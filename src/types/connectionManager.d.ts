@@ -71,9 +71,10 @@ declare class ConnectionManager {
 	 *
 	 * @connectionmanager
 	 */
-	public create(
-		options: any,
-		logger: Moleculer.LoggerInstance,
-		newConnection?: boolean,
-	): Promise<any>;
+	public create(options: {
+		config: any;
+		logger: Moleculer.LoggerInstance;
+		newConnection?: boolean;
+		customORMDriverMap?: Record<string, any>;
+	}): Promise<any>;
 }
